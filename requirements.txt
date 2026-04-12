@@ -1,0 +1,17 @@
+streamlit
+openai
+python-dotenv
+requests
+typing
+tavily-python
+python-dotenv
+langchain
+langchain-community
+langchain-text-splitters
+langchain-chroma
+langchain-huggingface
+chromadb
+sentence-transformers
+torchvision
+torch
+torchaudio

@@ -1,0 +1,42 @@
+# Entorno virtual
+venv/
+.venv/
+
+# Variables de entorno
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Streamlit
+.streamlit/
+
+# Chroma / vectorstore
+data/vectorstore/chroma_db/
+*.sqlite3
+
+# HuggingFace / cache
+.cache/
+
+# Testing / coverage
+.coverage
+.pytest_cache/
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Logs
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+
+# apuntes
+estructura.txt
+pasos_a_tener_en_cuenta.txt
