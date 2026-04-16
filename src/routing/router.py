@@ -8,6 +8,7 @@ Motivo de su creación:
 
 from __future__ import annotations
 
+import logging
 import re
 
 from src.llm.ollama_client import generate_response, format_tool_result_with_llm
@@ -18,6 +19,8 @@ from src.tools.tools import (
     get_weather,
     search_web,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def detect_intent(prompt: str) -> str:
@@ -137,61 +140,104 @@ def extract_datetime_location(prompt: str) -> str | None:
         return match.group(1).strip(" ?¿!.,")
     return None
 
-def process_user_message(prompt: str, messages: list[dict[str, str]]) -> str:
+def execute_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
     """
-    Procesa el mensaje del usuario decidiendo si usar tools, RAG o el modelo.
+    Procesa el mensaje del usuario y devuelve una respuesta estructurada.
     """
     intent = detect_intent(prompt)
-    
-    print(f"[ROUTER] Intent detectada: {intent}")
-    
+
+    logger.info("Intent detectada: %s", intent)
+
     if intent == "datetime":
         location = extract_datetime_location(prompt)
         raw_result = get_current_datetime(location)
-        
-        print(f"[DATETIME] Ubicación detectada: {location}")
-        
-        return format_tool_result_with_llm(
-            user_prompt=prompt,
-            tool_name="datetime",
-            tool_result=raw_result,
-        )
+
+        logger.info("Datetime location=%s", location)
+
+        return {
+            "answer": format_tool_result_with_llm(
+                user_prompt=prompt,
+                tool_name="datetime",
+                tool_result=raw_result,
+            ),
+            "detected_intent": "datetime",
+            "tools_used": ["datetime"],
+            "sources": [],
+        }
 
     if intent == "weather":
         city = extract_city(prompt)
         scope = detect_weather_scope(prompt)
         raw_result = get_weather(city, scope=scope)
-        
-        print(f"[WEATHER] Ciudad: {city} | Scope: {scope}")
-        
-        # Para salidas estructuradas, mejor no usar el LLM
-        if scope in ["weekly", "next_week", "next_weekend"]:
-            return raw_result
 
-        return format_tool_result_with_llm(
-            user_prompt=prompt,
-            tool_name="weather",
-            tool_result=raw_result,
-        )
+        logger.info("Weather city=%s scope=%s", city, scope)
+
+        if scope in ["weekly", "next_week", "next_weekend"]:
+            return {
+                "answer": raw_result,
+                "detected_intent": "weather",
+                "tools_used": ["weather"],
+                "sources": [],
+            }
+
+        return {
+            "answer": format_tool_result_with_llm(
+                user_prompt=prompt,
+                tool_name="weather",
+                tool_result=raw_result,
+            ),
+            "detected_intent": "weather",
+            "tools_used": ["weather"],
+            "sources": [],
+        }
 
     if intent == "web":
-        print("[WEB] Ejecutando búsqueda web")
-        
+        logger.info("Ejecutando búsqueda web")
         raw_result = search_web(prompt)
-        return format_tool_result_with_llm(
-            user_prompt=prompt,
-            tool_name="web_search",
-            tool_result=raw_result,
-        )
-        
+
+        return {
+            "answer": format_tool_result_with_llm(
+                user_prompt=prompt,
+                tool_name="web_search",
+                tool_result=raw_result,
+            ),
+            "detected_intent": "web",
+            "tools_used": ["web_search"],
+            "sources": [],
+        }
+
     if intent == "rag":
-        print("[RAG] Ejecutando pipeline RAG")
-        return answer_with_rag(prompt)
-    
+        logger.info("Ejecutando pipeline RAG")
+        return {
+            "answer": answer_with_rag(prompt),
+            "detected_intent": "rag",
+            "tools_used": ["rag"],
+            "sources": ["local_knowledge_base"],
+        }
+
     if intent == "calculator":
         expression = extract_expression(prompt)
-        print(f"[CALCULATOR] Expresión: {expression}")
-        return calculate_expression(expression)
-    
-    print("[CHAT] Respuesta directa con LLM")
-    return generate_response(messages)
+        logger.info("Calculator expression=%s", expression)
+
+        return {
+            "answer": calculate_expression(expression),
+            "detected_intent": "calculator",
+            "tools_used": ["calculator"],
+            "sources": [],
+        }
+
+    logger.info("Respuesta directa con LLM")
+    return {
+        "answer": generate_response(messages),
+        "detected_intent": "chat",
+        "tools_used": [],
+        "sources": [],
+    }
+
+
+def process_user_message(prompt: str, messages: list[dict[str, str]]) -> str:
+    """
+    Mantiene compatibilidad con la V1.1 devolviendo solo texto.
+    """
+    result = execute_user_message(prompt, messages)
+    return result["answer"]

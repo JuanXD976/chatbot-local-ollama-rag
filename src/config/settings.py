@@ -6,20 +6,37 @@ Motivo de su creación:
 - Evitar valores fijos repartidos por el código.
 - Facilitar cambios futuros sin tocar varios archivos.
 """
-
+from __future__ import annotations
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-OLLAMA_BASE_URL = "http://localhost:11434"
-OLLAMA_CHAT_MODEL = "gemma3:4"
-APP_TITLE = "🤖 Chatbot V1 Local con Ollama"
-APP_DESCRIPTION = "Primera versión del chatbot local usando Streamlit y Ollama."
+# =========================
+# APP
+# =========================
+APP_TITLE = "🤖 Chatbot Local con Ollama - V1.2"
+APP_DESCRIPTION = (
+    "Versión modular del chatbot local con Streamlit, Ollama, tools, RAG y sesiones persistentes."
+)
 MAX_MESSAGES = 6
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+# =========================
+# OLLAMA
+# =========================
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "gemma3:4")
+
+# =========================
+# WEB SEARCH
+# =========================
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
 
+# =========================
+# RAG
+# =========================
 RAG_RAW_DATA_PATH = "data/raw"
 RAG_CHROMA_PATH = "data/vectorstore/chroma_db"
 RAG_EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -51,10 +68,17 @@ Significa:
 cuando haces una consulta, el retriever recupera los 4 chunks más relevantes
 """
 
-RAG_CHUNK_SIZE = int(800)
-RAG_CHUNK_OVERLAP = int(150)
-RAG_TOP_K = int(4)
+RAG_CHUNK_SIZE = 800
+RAG_CHUNK_OVERLAP = 150
+RAG_TOP_K = 4
 
-
+# =========================
+# MEMORY
+# =========================
 MEMORY_FILE_PATH = "data/memory/conversation_history.json"
 MEMORY_MAX_MESSAGES = 100
+
+# =========================
+# SESSIONS
+# =========================
+SESSION_FILE_PATH = "data/memory/chat_sessions.json"

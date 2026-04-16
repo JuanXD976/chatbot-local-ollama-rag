@@ -36,6 +36,7 @@ def _message_already_exists(messages: list[dict[str, str]], content: str) -> boo
             return True
 
     return False
+
 def get_persistent_memory() -> list[dict[str, str]]:
     """
     Devuelve la memoria persistente actual.

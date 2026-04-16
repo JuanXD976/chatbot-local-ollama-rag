@@ -10,6 +10,7 @@ Motivo de su creación:
 
 from pathlib import Path
 
+from annotated_types import doc
 from langchain_core.documents import Document
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -42,6 +43,7 @@ def load_documents_from_directory(directory: str) -> list[Document]:
 
             for doc in docs:
                 doc.metadata["source"] = str(file_path)
+                doc.metadata["source_name"] = file_path.name
 
             documents.extend(docs)
 

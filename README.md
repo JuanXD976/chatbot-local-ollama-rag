@@ -1,14 +1,8 @@
-# 🤖 Chatbot V1.1 Local con Ollama
+# 🤖 Chatbot Local con Ollama — V1.2.1
 
-Versión 1.1 de un chatbot local desarrollado en Python utilizando **Streamlit**, **Ollama**, **tools externas**, **RAG local con ChromaDB** y **memoria persistente personalizada**.
+Versión 1.2.1 de un chatbot local desarrollado en Python utilizando **Streamlit**, **Ollama**, **RAG con ChromaDB**, **tools externas**, **memoria persistente** y **arquitectura modular profesional**.
 
-El objetivo del proyecto es construir una arquitectura modular de chatbot profesional capaz de combinar:
-
-- generación conversacional con LLM local,
-- herramientas externas (tools),
-- recuperación de información mediante RAG,
-- memoria persistente entre sesiones,
-- y una interfaz visual sencilla para pruebas y evolución futura.
+El objetivo del proyecto es construir un asistente conversacional local escalable y modular que combine generación con LLM, herramientas externas, recuperación documental y memoria persistente, siguiendo buenas prácticas de software engineering aplicadas a IA.
 
 ---
 
@@ -16,7 +10,9 @@ El objetivo del proyecto es construir una arquitectura modular de chatbot profes
 
 Actualmente el chatbot incorpora las siguientes capacidades:
 
-### 💬 Chat conversacional local
+---
+
+## 💬 Chat conversacional local
 - Generación de respuestas mediante modelo LLM local ejecutado en Ollama.
 - Gestión de historial conversacional.
 - Prompt de sistema configurable.
@@ -24,7 +20,7 @@ Actualmente el chatbot incorpora las siguientes capacidades:
 
 ---
 
-### 🧠 Memoria persistente
+## 🧠 Memoria persistente
 - Sistema de memoria persistente entre sesiones.
 - Capacidad para recordar información importante del usuario.
 - Persistencia de datos aunque se cierre la aplicación.
@@ -34,61 +30,87 @@ Actualmente el chatbot incorpora las siguientes capacidades:
 
 ---
 
-### 🌐 Búsqueda web en tiempo real
+## 📂 Sistema de sesiones conversacionales
+- Persistencia estructurada de conversaciones por sesión.
+- Generación automática de `session_id`.
+- Almacenamiento de histórico conversacional independiente.
+- Gestión separada entre memoria persistente y sesiones de chat.
+
+---
+
+## 🌐 Búsqueda web en tiempo real
 - Integración con Tavily Search API.
 - Capacidad para buscar información actualizada en internet.
 - Reformateo de resultados mediante LLM.
 
 ---
 
-### 🌦 Consulta meteorológica
+## 🌦 Consulta meteorológica avanzada
 - Consulta meteorológica actual.
+- Predicción diaria.
 - Predicción semanal.
 - Predicción próxima semana.
-- Predicción fin de semana.
+- Predicción próximo fin de semana.
+- Resolución automática de ciudades mediante Open-Meteo Geocoding.
 
 ---
 
-### 🕒 Fecha y hora inteligente
+## 🕒 Fecha y hora inteligente
 - Consulta de fecha/hora local.
-- Consulta de hora por ubicación:
-  - Ejemplo: *"¿Qué hora es en China?"*
+- Consulta de hora por ubicación.
+- Soporte para múltiples zonas horarias configuradas.
 
 ---
 
-### 🧮 Calculadora integrada
+## 🧮 Calculadora integrada
 - Resolución de operaciones matemáticas seguras.
-- Soporte para operaciones básicas:
+- Soporte para:
   - suma
   - resta
   - multiplicación
   - división
+  - potencias
+  - módulo
   - sqrt
   - log
+  - log10
+  - trigonometría básica
 
 ---
 
-### 📚 RAG local con ChromaDB
+## 📚 Sistema RAG local con ChromaDB
 - Base vectorial local mediante Chroma.
 - Embeddings con SentenceTransformers.
-- Recuperación contextual sobre documentos propios.
-- Consulta sobre base documental local.
+- Recuperación semántica de documentos propios.
+- Pipeline RAG modular.
+- Respuestas enriquecidas usando únicamente contexto recuperado.
+- Formateo optimizado de contexto sin exposición de rutas técnicas.
+
+---
+
+## 📋 Logging y trazabilidad interna
+- Sistema de logging centralizado.
+- Registro de intención detectada.
+- Registro de tools utilizadas.
+- Registro de errores y excepciones.
 
 ---
 
 # 🏗 Arquitectura del proyecto
 
-El proyecto sigue una arquitectura modular separada por responsabilidades:
+El proyecto sigue una arquitectura modular profesional separada por responsabilidades:
 
 ```text
 src/
-├── config/        # Configuración global
-├── llm/           # Cliente Ollama / lógica LLM
-├── rag/           # Pipeline RAG / ingestion / retrieval
-├── routing/       # Router de intenciones
-├── tools/         # Herramientas externas integradas
-├── utils/         # Utilidades auxiliares
-└── memory/        # Sistema de memoria persistente
+├── app/            # Capa de aplicación / servicios / orquestación
+├── config/         # Configuración global / logging / settings
+├── core/           # Modelos internos / excepciones custom
+├── llm/            # Cliente Ollama / generación LLM
+├── memory/         # Memoria persistente / storage
+├── rag/            # Pipeline RAG / ingestion / retrieval / vectorstore
+├── routing/        # Router de intenciones
+├── tools/          # Herramientas externas integradas
+└── utils/          # Utilidades auxiliares
 
 ---
 
@@ -110,6 +132,7 @@ src/
 ### APIs externas
 - Tavily Search API
 - Open Meteo API
+- Open Meteo Geocoding API
 
 ---
 
@@ -118,11 +141,20 @@ src/
 El chatbot sigue el siguiente flujo lógico:
 
 ```text
-Usuario →
-Interfaz Streamlit →
-Router de intenciones →
-( Tool / RAG / LLM ) →
-Respuesta final →
+Usuario
+   ↓
+Interfaz Streamlit
+   ↓
+ChatService
+   ↓
+ChatOrchestrator
+   ↓
+Router de intenciones
+   ↓
+( Tool / RAG / LLM )
+   ↓
+Respuesta estructurada
+   ↓
 Usuario
 ```
 
@@ -231,13 +263,16 @@ Mi nombre es Juan
 
 Próximas mejoras previstas:
 
-- [ ] Streaming de respuesta en tiempo real.
-- [ ] Upload de documentos desde UI.
-- [ ] Citado de fuentes RAG.
-- [ ] Memoria inteligente por relevancia.
-- [ ] Multiagente / agent planning.
-- [ ] Testing automatizado.
-- [ ] Dockerización.
+- [ ] Historial visual de sesiones en sidebar.
+- [ ] Recuperación de conversaciones anteriores.
+- [ ]  Exportación de sesiones.
+- [ ]  Upload de documentos desde UI.
+- [ ]  Citado de fuentes RAG mejorado.
+- [ ]  Streaming de respuesta en tiempo real.
+- [ ]  Testing automatizado.
+- [ ]  Backend desacoplado con FastAPI.
+- [ ]  Frontend profesional con React/Next.js.
+- [ ]  Dockerización.
 
 ---
 

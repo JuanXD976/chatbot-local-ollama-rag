@@ -7,23 +7,34 @@ Motivo de su creación:
 - Facilitar cambios futuros en la configuración.
 """
 
+from __future__ import annotations
+
+import logging
 import re
 from typing import Optional
 
 import requests
 
 from src.config.settings import OLLAMA_BASE_URL, OLLAMA_CHAT_MODEL
+from src.core.exceptions import OllamaConnectionError
+
+logger = logging.getLogger(__name__)
 
 
 def check_ollama_connection() -> dict:
     """
-    Comprueba si Ollama está accesible consultando la lista de modelos
-    que tenemos descargados localmente.
+    Comprueba si Ollama está accesible consultando los modelos locales.
     """
     url = f"{OLLAMA_BASE_URL}/api/tags"
-    response = requests.get(url, timeout=10)
-    response.raise_for_status()
-    return response.json()
+
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as exc:
+        raise OllamaConnectionError(
+            "No se pudo conectar con Ollama. Comprueba que el servicio esté levantado."
+        ) from exc
 
 
 def clean_response(text: Optional[str]) -> str:
@@ -50,7 +61,6 @@ def clean_response(text: Optional[str]) -> str:
         text = text.replace(token, "")
 
     text = re.sub(r"<\|[^>]+\|>", "", text)
-
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"\n{3,}", "\n\n", text)
     text = re.sub(r"[ \t]{2,}", " ", text)
@@ -77,6 +87,7 @@ def generate_response(messages: list[dict[str, str]], max_tokens: int = 700) -> 
         },
     }
     try:
+        logger.info("Enviando petición a Ollama con %s mensajes", len(messages))
         response = requests.post(url, json=payload, timeout=120)
         response.raise_for_status()
 
@@ -84,12 +95,18 @@ def generate_response(messages: list[dict[str, str]], max_tokens: int = 700) -> 
         message = data.get("message", {})
         content = message.get("content", "")
 
-        return clean_response(content)
-    except requests.RequestException as e:
-            return f"No se pudo obtener respuesta del modelo local. Error: {e}"
+        cleaned = clean_response(content)
+        logger.info("Respuesta recibida correctamente desde Ollama")
+        return cleaned
+
+    except requests.RequestException as exc:
+        logger.exception("Fallo al comunicarse con Ollama")
+        raise OllamaConnectionError(
+            f"No se pudo obtener respuesta del modelo local: {exc}"
+        ) from exc
 
 
-def format_tool_result_with_llm( user_prompt: str, tool_name: str, tool_result: str,) -> str:
+def format_tool_result_with_llm(user_prompt: str, tool_name: str, tool_result: str) -> str:
     """
     Usa el modelo para transformar el resultado crudo de una tool
     en una respuesta clara, natural y útil para el usuario.

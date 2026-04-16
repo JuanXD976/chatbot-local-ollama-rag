@@ -20,7 +20,7 @@ data/vectorstore/chroma_db/
 *.sqlite3
 
 # Memoria persistente real del usuario
-data/memory/conversation_history.json
+data/memory/
 
 # HuggingFace / cache
 .cache/
@@ -32,6 +32,7 @@ data/memory/conversation_history.json
 # Sistema / editor
 .DS_Store
 Thumbs.db
+.idea/
 .vscode/
 
 # Logs
