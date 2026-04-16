@@ -1,6 +1,6 @@
-# 🤖 Chatbot Local con Ollama — V1.2.1
+# 🤖 Chatbot Local con Ollama — V1.3
 
-Versión 1.2.1 de un chatbot local desarrollado en Python utilizando **Streamlit**, **Ollama**, **RAG con ChromaDB**, **tools externas**, **memoria persistente** y **arquitectura modular profesional**.
+Versión 1.3 de un chatbot local desarrollado en Python utilizando **Streamlit**, **Ollama**, **RAG con ChromaDB**, **tools externas**, **memoria persistente**, **sesiones conversacionales** y **arquitectura modular profesional**.
 
 El objetivo del proyecto es construir un asistente conversacional local escalable y modular que combine generación con LLM, herramientas externas, recuperación documental y memoria persistente, siguiendo buenas prácticas de software engineering aplicadas a IA.
 
@@ -8,91 +8,79 @@ El objetivo del proyecto es construir un asistente conversacional local escalabl
 
 # 🚀 Funcionalidades actuales
 
-Actualmente el chatbot incorpora las siguientes capacidades:
-
----
-
 ## 💬 Chat conversacional local
 - Generación de respuestas mediante modelo LLM local ejecutado en Ollama.
 - Gestión de historial conversacional.
 - Prompt de sistema configurable.
-- Limitación de contexto mediante ventana de mensajes configurable.
+- Limitación de contexto mediante ventana configurable.
 
 ---
 
 ## 🧠 Memoria persistente
-- Sistema de memoria persistente entre sesiones.
-- Capacidad para recordar información importante del usuario.
-- Persistencia de datos aunque se cierre la aplicación.
-- Botón para limpiar memoria desde la interfaz.
-- Botón para iniciar nueva conversación sin perder memoria.
-- Prevención de duplicados en memoria.
+- Persistencia entre sesiones.
+- Recordatorio de información importante del usuario.
+- Prevención de duplicados.
+- Limpieza manual desde interfaz.
 
 ---
 
-## 📂 Sistema de sesiones conversacionales
-- Persistencia estructurada de conversaciones por sesión.
-- Generación automática de `session_id`.
-- Almacenamiento de histórico conversacional independiente.
-- Gestión separada entre memoria persistente y sesiones de chat.
+## 📂 Gestión visual de sesiones
+- Sidebar de historial conversacional.
+- Creación de nuevas conversaciones.
+- Carga de sesiones anteriores.
+- Eliminación de sesiones.
+- Exportación de sesiones en JSON.
+- Resaltado visual de sesión activa.
 
 ---
 
-## 🌐 Búsqueda web en tiempo real
+## 🌐 Búsqueda web
 - Integración con Tavily Search API.
-- Capacidad para buscar información actualizada en internet.
-- Reformateo de resultados mediante LLM.
+- Información en tiempo real desde internet.
+- Reformateo natural mediante LLM.
 
 ---
 
-## 🌦 Consulta meteorológica avanzada
-- Consulta meteorológica actual.
-- Predicción diaria.
+## 🌦 Weather Tool
+- Tiempo actual.
 - Predicción semanal.
 - Predicción próxima semana.
-- Predicción próximo fin de semana.
-- Resolución automática de ciudades mediante Open-Meteo Geocoding.
+- Predicción fin de semana.
+- Geocoding automático de ciudades.
 
 ---
 
-## 🕒 Fecha y hora inteligente
-- Consulta de fecha/hora local.
-- Consulta de hora por ubicación.
-- Soporte para múltiples zonas horarias configuradas.
+## 🕒 DateTime Tool
+- Hora actual.
+- Fecha actual.
+- Hora por ubicación.
 
 ---
 
-## 🧮 Calculadora integrada
-- Resolución de operaciones matemáticas seguras.
+## 🧮 Calculadora
+- Operaciones matemáticas seguras.
 - Soporte para:
-  - suma
-  - resta
-  - multiplicación
-  - división
-  - potencias
-  - módulo
-  - sqrt
-  - log
-  - log10
-  - trigonometría básica
+  - suma/resta
+  - multiplicación/división
+  - sqrt/log/log10
+  - trigonometría
 
 ---
 
-## 📚 Sistema RAG local con ChromaDB
-- Base vectorial local mediante Chroma.
+## 📚 Sistema RAG
+- Base vectorial local con ChromaDB.
+- Recuperación semántica de documentos.
 - Embeddings con SentenceTransformers.
-- Recuperación semántica de documentos propios.
-- Pipeline RAG modular.
-- Respuestas enriquecidas usando únicamente contexto recuperado.
-- Formateo optimizado de contexto sin exposición de rutas técnicas.
+- Prompt RAG optimizado.
+- Limpieza de metadatos/rutas técnicas.
 
 ---
 
-## 📋 Logging y trazabilidad interna
-- Sistema de logging centralizado.
+## 📋 Logging interno
+- Registro de flujo de ejecución.
 - Registro de intención detectada.
-- Registro de tools utilizadas.
-- Registro de errores y excepciones.
+- Registro de tools usadas.
+- Registro de errores.
 
 ---
 
@@ -111,6 +99,8 @@ src/
 ├── routing/        # Router de intenciones
 ├── tools/          # Herramientas externas integradas
 └── utils/          # Utilidades auxiliares
+```
+---
 
 ---
 
@@ -136,6 +126,8 @@ src/
 
 ---
 
+---
+
 # 🧠 Flujo de procesamiento interno
 
 El chatbot sigue el siguiente flujo lógico:
@@ -157,7 +149,7 @@ Respuesta estructurada
    ↓
 Usuario
 ```
-
+---
 ---
 
 # 📂 Sistema RAG
@@ -263,16 +255,13 @@ Mi nombre es Juan
 
 Próximas mejoras previstas:
 
-- [ ] Historial visual de sesiones en sidebar.
-- [ ] Recuperación de conversaciones anteriores.
-- [ ]  Exportación de sesiones.
-- [ ]  Upload de documentos desde UI.
-- [ ]  Citado de fuentes RAG mejorado.
-- [ ]  Streaming de respuesta en tiempo real.
-- [ ]  Testing automatizado.
-- [ ]  Backend desacoplado con FastAPI.
-- [ ]  Frontend profesional con React/Next.js.
-- [ ]  Dockerización.
+- [ ] Streaming de respuesta en tiempo real.
+- [ ] Upload de documentos desde UI.
+- [ ] Smart Memory Manager.
+- [ ] Backend desacoplado FastAPI.
+- [ ] Frontend React/Next.js.
+- [ ] Dockerización.
+- [ ] Testing automatizado.
 
 ---
 

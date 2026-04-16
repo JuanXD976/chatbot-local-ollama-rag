@@ -3,7 +3,7 @@ Servicio de sesiones conversacionales.
 
 Motivo de su creación:
 - Gestionar sesiones independientes de la memoria persistente general.
-- Permitir recuperación y persistencia por conversación.
+- Permitir recuperación, persistencia, borrado y exportación por conversación.
 """
 
 from __future__ import annotations
@@ -17,6 +17,13 @@ from typing import Dict, List, Optional
 
 from src.core.exceptions import SessionError
 from src.core.models import ChatMessage, ChatSession
+
+
+def _utc_now_iso() -> str:
+    """
+    Devuelve timestamp UTC en formato ISO con timezone explícita.
+    """
+    return datetime.now(timezone.utc).isoformat()
 
 
 class SessionService:
@@ -48,7 +55,13 @@ class SessionService:
 
     def create_session(self, title: str = "Nueva conversación") -> ChatSession:
         session_id = str(uuid.uuid4())
-        session = ChatSession(session_id=session_id, title=title)
+        session = ChatSession(
+            session_id=session_id,
+            title=title,
+            created_at=_utc_now_iso(),
+            updated_at=_utc_now_iso(),
+            messages=[],
+        )
 
         sessions = self._load_sessions()
         sessions[session_id] = asdict(session)
@@ -97,17 +110,52 @@ class SessionService:
         if session_id not in sessions:
             raise SessionError(f"No existe la sesión '{session_id}'.")
 
-        message = ChatMessage(role=role, content=content)
+        message = ChatMessage(
+            role=role,
+            content=content,
+            timestamp=_utc_now_iso(),
+        )
+
         sessions[session_id]["messages"].append(asdict(message))
-        sessions[session_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
+        sessions[session_id]["updated_at"] = _utc_now_iso()
 
         if sessions[session_id]["title"] == "Nueva conversación" and role == "user":
-            sessions[session_id]["title"] = content[:50].strip() or "Nueva conversación"
+            sessions[session_id]["title"] = self._build_title_from_content(content)
 
         self._save_sessions(sessions)
 
     def delete_session(self, session_id: str) -> None:
         sessions = self._load_sessions()
+
         if session_id in sessions:
             del sessions[session_id]
             self._save_sessions(sessions)
+
+    def rename_session(self, session_id: str, new_title: str) -> None:
+        sessions = self._load_sessions()
+
+        if session_id not in sessions:
+            raise SessionError(f"No existe la sesión '{session_id}'.")
+
+        cleaned_title = (new_title or "").strip()
+        if not cleaned_title:
+            raise SessionError("El nuevo título de la sesión no puede estar vacío.")
+
+        sessions[session_id]["title"] = cleaned_title[:80]
+        sessions[session_id]["updated_at"] = _utc_now_iso()
+        self._save_sessions(sessions)
+
+    def export_session_as_json(self, session_id: str) -> str:
+        session = self.get_session(session_id)
+
+        if not session:
+            raise SessionError(f"No existe la sesión '{session_id}'.")
+
+        return json.dumps(asdict(session), ensure_ascii=False, indent=2)
+
+    def _build_title_from_content(self, content: str) -> str:
+        """
+        Genera un título breve a partir del primer mensaje del usuario.
+        """
+        cleaned = " ".join(content.strip().split())
+        return (cleaned[:50] + "...") if len(cleaned) > 50 else (cleaned or "Nueva conversación")
