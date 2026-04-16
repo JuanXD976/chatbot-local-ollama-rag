@@ -19,6 +19,9 @@ __pycache__/
 data/vectorstore/chroma_db/
 *.sqlite3
 
+# Memoria persistente real del usuario
+data/memory/conversation_history.json
+
 # HuggingFace / cache
 .cache/
 

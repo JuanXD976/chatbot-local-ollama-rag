@@ -54,3 +54,7 @@ cuando haces una consulta, el retriever recupera los 4 chunks más relevantes
 RAG_CHUNK_SIZE = int(800)
 RAG_CHUNK_OVERLAP = int(150)
 RAG_TOP_K = int(4)
+
+
+MEMORY_FILE_PATH = "data/memory/conversation_history.json"
+MEMORY_MAX_MESSAGES = 100
