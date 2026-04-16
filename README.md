@@ -1,12 +1,13 @@
-# 🤖 Chatbot V1 Local con Ollama
+# 🤖 Chatbot V1.1 Local con Ollama
 
-Primera versión de un chatbot local desarrollado en Python utilizando **Streamlit**, **Ollama**, **tools externas** y **RAG local con ChromaDB**.
+Versión 1.1 de un chatbot local desarrollado en Python utilizando **Streamlit**, **Ollama**, **tools externas**, **RAG local con ChromaDB** y **memoria persistente personalizada**.
 
 El objetivo del proyecto es construir una arquitectura modular de chatbot profesional capaz de combinar:
 
 - generación conversacional con LLM local,
 - herramientas externas (tools),
 - recuperación de información mediante RAG,
+- memoria persistente entre sesiones,
 - y una interfaz visual sencilla para pruebas y evolución futura.
 
 ---
@@ -19,6 +20,17 @@ Actualmente el chatbot incorpora las siguientes capacidades:
 - Generación de respuestas mediante modelo LLM local ejecutado en Ollama.
 - Gestión de historial conversacional.
 - Prompt de sistema configurable.
+- Limitación de contexto mediante ventana de mensajes configurable.
+
+---
+
+### 🧠 Memoria persistente
+- Sistema de memoria persistente entre sesiones.
+- Capacidad para recordar información importante del usuario.
+- Persistencia de datos aunque se cierre la aplicación.
+- Botón para limpiar memoria desde la interfaz.
+- Botón para iniciar nueva conversación sin perder memoria.
+- Prevención de duplicados en memoria.
 
 ---
 
@@ -75,8 +87,8 @@ src/
 ├── rag/           # Pipeline RAG / ingestion / retrieval
 ├── routing/       # Router de intenciones
 ├── tools/         # Herramientas externas integradas
-└── utils/         # Utilidades auxiliares
-```
+├── utils/         # Utilidades auxiliares
+└── memory/        # Sistema de memoria persistente
 
 ---
 
@@ -207,6 +219,12 @@ Calcula sqrt(144) + 8 * 2
 Según mis documentos, ¿quién era Xylar?
 ```
 
+### Memory
+
+```text
+Mi nombre es Juan
+¿Cuál es mi nombre?
+```
 ---
 
 # 🔮 Roadmap futuro
@@ -214,9 +232,9 @@ Según mis documentos, ¿quién era Xylar?
 Próximas mejoras previstas:
 
 - [ ] Streaming de respuesta en tiempo real.
-- [ ] Memoria persistente.
 - [ ] Upload de documentos desde UI.
 - [ ] Citado de fuentes RAG.
+- [ ] Memoria inteligente por relevancia.
 - [ ] Multiagente / agent planning.
 - [ ] Testing automatizado.
 - [ ] Dockerización.
