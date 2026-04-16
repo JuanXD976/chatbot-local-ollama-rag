@@ -14,6 +14,13 @@ from datetime import datetime, timezone
 from typing import List
 
 
+def _utc_now_iso() -> str:
+    """
+    Devuelve timestamp UTC en formato ISO con timezone explícita.
+    """
+    return datetime.now(timezone.utc).isoformat()
+
+
 @dataclass
 class ChatMessage:
     """
@@ -21,7 +28,7 @@ class ChatMessage:
     """
     role: str
     content: str
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=_utc_now_iso)
 
 
 @dataclass
@@ -31,8 +38,8 @@ class ChatSession:
     """
     session_id: str
     title: str
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = field(default_factory=_utc_now_iso)
+    updated_at: str = field(default_factory=_utc_now_iso)
     messages: List[ChatMessage] = field(default_factory=list)
 
 
@@ -44,6 +51,7 @@ class ChatRequest:
     message: str
     session_id: str
     messages_for_model: List[dict[str, str]] = field(default_factory=list)
+    stream: bool = False
 
 
 @dataclass
@@ -55,4 +63,4 @@ class ChatResponse:
     detected_intent: str = "chat"
     tools_used: List[str] = field(default_factory=list)
     sources: List[str] = field(default_factory=list)
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=_utc_now_iso)

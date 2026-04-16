@@ -9,6 +9,7 @@ Motivo de su creación:
 from __future__ import annotations
 
 import logging
+from typing import Generator
 
 from src.app.orchestrator import ChatOrchestrator
 from src.app.session_service import SessionService
@@ -58,10 +59,62 @@ class ChatService:
             message=user_message,
             session_id=session_id,
             messages_for_model=messages_for_model,
+            stream=False,
         )
 
         response = self.orchestrator.handle(request)
-
         self.session_service.append_message(session_id, "assistant", response.answer)
 
         return response
+
+    def stream_message(
+        self,
+        session_id: str,
+        user_message: str,
+        messages_for_model: list[dict[str, str]],
+    ) -> tuple[dict, str]:
+        """
+        Procesa un mensaje en modo streaming.
+
+        Devuelve:
+        - metadata del resultado
+        - respuesta final completa
+        """
+        self.session_service.append_message(session_id, "user", user_message)
+
+        stream_result = self.orchestrator.stream_handle(
+            ChatRequest(
+                message=user_message,
+                session_id=session_id,
+                messages_for_model=messages_for_model,
+                stream=True,
+            )
+        )
+
+        final_answer = ""
+
+        if "stream" in stream_result:
+            chunks = []
+            for chunk in stream_result["stream"]:
+                chunks.append(chunk)
+                yield {
+                    "type": "chunk",
+                    "content": chunk,
+                    "detected_intent": stream_result.get("detected_intent", "chat"),
+                    "tools_used": stream_result.get("tools_used", []),
+                    "sources": stream_result.get("sources", []),
+                }
+
+            final_answer = "".join(chunks).strip()
+
+        else:
+            final_answer = (stream_result.get("answer") or "").strip()
+            yield {
+                "type": "final",
+                "content": final_answer,
+                "detected_intent": stream_result.get("detected_intent", "chat"),
+                "tools_used": stream_result.get("tools_used", []),
+                "sources": stream_result.get("sources", []),
+            }
+
+        self.session_service.append_message(session_id, "assistant", final_answer)

@@ -16,9 +16,9 @@ load_dotenv()
 # =========================
 # APP
 # =========================
-APP_TITLE = "🤖 Chatbot Local con Ollama - V1.3"
+APP_TITLE = "🤖 Chatbot Local con Ollama - V1.4"
 APP_DESCRIPTION = (
-    "Versión modular del chatbot local con Streamlit, Ollama, tools, RAG, memoria y gestión visual de sesiones."
+    "Versión modular del chatbot local con Streamlit, Ollama, tools, RAG, memoria, sesiones y streaming en tiempo real."
 )
 MAX_MESSAGES = 6
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
@@ -28,6 +28,7 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 # =========================
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "gemma3:4")
+OLLAMA_MAX_TOKENS = int(os.getenv("OLLAMA_MAX_TOKENS", "1200"))
 
 # =========================
 # WEB SEARCH

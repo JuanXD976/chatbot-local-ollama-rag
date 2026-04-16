@@ -1,6 +1,6 @@
-# 🤖 Chatbot Local con Ollama — V1.3
+# 🤖 Chatbot Local con Ollama — V1.4
 
-Versión 1.3 de un chatbot local desarrollado en Python utilizando **Streamlit**, **Ollama**, **RAG con ChromaDB**, **tools externas**, **memoria persistente**, **sesiones conversacionales** y **arquitectura modular profesional**.
+Versión 1.4 de un chatbot local desarrollado en Python utilizando **Streamlit**, **Ollama**, **RAG con ChromaDB**, **tools externas**, **memoria persistente**, **sesiones conversacionales** y **streaming en tiempo real**.
 
 El objetivo del proyecto es construir un asistente conversacional local escalable y modular que combine generación con LLM, herramientas externas, recuperación documental y memoria persistente, siguiendo buenas prácticas de software engineering aplicadas a IA.
 
@@ -16,10 +16,20 @@ El objetivo del proyecto es construir un asistente conversacional local escalabl
 
 ---
 
+## ⚡ Streaming de respuesta en tiempo real
+- Respuesta progresiva token/chunk a chunk.
+- Renderizado dinámico tipo ChatGPT.
+- Indicador visual de "pensando".
+- Limpieza automática de tokens internos/residuales del modelo.
+- Soporte para respuestas largas mejorado.
+
+---
+
 ## 🧠 Memoria persistente
 - Persistencia entre sesiones.
 - Recordatorio de información importante del usuario.
 - Prevención de duplicados.
+- Filtrado de memoria inteligente básico.
 - Limpieza manual desde interfaz.
 
 ---
@@ -255,7 +265,6 @@ Mi nombre es Juan
 
 Próximas mejoras previstas:
 
-- [ ] Streaming de respuesta en tiempo real.
 - [ ] Upload de documentos desde UI.
 - [ ] Smart Memory Manager.
 - [ ] Backend desacoplado FastAPI.

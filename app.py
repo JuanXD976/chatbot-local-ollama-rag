@@ -27,13 +27,13 @@ from src.config.settings import (
     SESSION_FILE_PATH,
 )
 from src.core.exceptions import OllamaConnectionError, SessionError
-from src.llm.ollama_client import check_ollama_connection
+from src.llm.ollama_client import check_ollama_connection, clean_response
 from src.memory.memory_service import (
     append_message_to_memory,
     get_persistent_memory,
     reset_persistent_memory,
 )
-from src.routing.router import detect_intent, execute_user_message
+from src.routing.router import detect_intent, execute_user_message, stream_user_message
 
 configure_logging(LOG_LEVEL)
 logger = logging.getLogger(__name__)
@@ -77,6 +77,29 @@ def build_memory_system_message(memory_messages: list[dict[str, str]]) -> dict[s
     }
 
 
+def should_store_in_memory(prompt: str) -> bool:
+    """
+    Decide de forma simple si un mensaje del usuario merece persistirse como memoria.
+    """
+    prompt_lower = prompt.lower()
+
+    memory_keywords = [
+        "me llamo",
+        "mi nombre es",
+        "recuerda que",
+        "soy",
+        "trabajo en",
+        "mi empresa es",
+        "vivo en",
+        "estudio",
+        "mi color favorito es",
+        "me gusta",
+        "prefiero",
+    ]
+
+    return any(keyword in prompt_lower for keyword in memory_keywords)
+
+
 def build_services() -> tuple[ChatService, SessionService]:
     """
     Construye las dependencias principales de la aplicación.
@@ -85,6 +108,7 @@ def build_services() -> tuple[ChatService, SessionService]:
     orchestrator = ChatOrchestrator(
         detect_intent_func=detect_intent,
         executor_func=execute_user_message,
+        stream_executor_func=stream_user_message,
     )
     chat_service = ChatService(
         session_service=session_service,
@@ -275,38 +299,44 @@ def handle_user_prompt(chat_service: ChatService) -> None:
     try:
         messages_for_model = build_messages_for_model()
 
-        response = chat_service.process_message(
-            session_id=st.session_state.session_id,
-            user_message=prompt,
-            messages_for_model=messages_for_model,
-        )
+        with st.chat_message("assistant"):
+            placeholder = st.empty()
+            raw_rendered_text = ""
+            final_clean_text = ""
 
-        reply = response.answer.strip() if response.answer else ""
+            with st.spinner("Pensando..."):
+                for event in chat_service.stream_message(
+                    session_id=st.session_state.session_id,
+                    user_message=prompt,
+                    messages_for_model=messages_for_model,
+                ):
+                    if event["type"] == "chunk":
+                        raw_rendered_text += event["content"]
 
-        if not reply:
-            reply = "⚠️ El modelo no ha devuelto respuesta. Intenta de nuevo."
+                        # MUY IMPORTANTE:
+                        # limpiar el buffer completo acumulado, no solo el chunk
+                        final_clean_text = clean_response(raw_rendered_text)
+
+                        if final_clean_text:
+                            placeholder.markdown(final_clean_text + "▌")
+                    else:
+                        raw_rendered_text = event["content"]
+                        final_clean_text = clean_response(raw_rendered_text)
+                        placeholder.markdown(final_clean_text)
+
+            reply = final_clean_text.strip()
+
+            if not reply:
+                reply = "⚠️ El modelo no ha devuelto respuesta. Intenta de nuevo."
+                placeholder.markdown(reply)
 
         st.session_state.messages.append({"role": "assistant", "content": reply})
 
-        with st.chat_message("assistant"):
-            st.markdown(reply)
-
-        if any(keyword in prompt.lower() for keyword in [
-            "me llamo",
-            "mi nombre es",
-            "recuerda que",
-            "soy",
-            "trabajo en",
-            "mi empresa es",
-        ]):
+        if should_store_in_memory(prompt):
             append_message_to_memory("user", prompt)
-        st.session_state.persistent_memory = get_persistent_memory()
+            st.session_state.persistent_memory = get_persistent_memory()
 
-        logger.info(
-            "Respuesta emitida | intent=%s | tools=%s",
-            response.detected_intent,
-            response.tools_used,
-        )
+        logger.info("Respuesta emitida correctamente en modo streaming")
 
     except RequestException as exc:
         logger.exception("Error de comunicación con Ollama")
@@ -330,7 +360,7 @@ def main() -> None:
     """
     chat_service, session_service = build_services()
 
-    st.set_page_config(page_title="Chatbot V1.3 Local", page_icon="🤖", layout="wide")
+    st.set_page_config(page_title="Chatbot V1.4 Local", page_icon="🤖", layout="wide")
     st.title(APP_TITLE)
     st.write(APP_DESCRIPTION)
     st.write(f"Modelo local actual: `{OLLAMA_CHAT_MODEL}`")
@@ -361,3 +391,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+        
+
