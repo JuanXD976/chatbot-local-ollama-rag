@@ -16,9 +16,9 @@ load_dotenv()
 # =========================
 # APP
 # =========================
-APP_TITLE = "🤖 Chatbot Local con Ollama - V1.4"
+APP_TITLE = "🤖 Chatbot Local con Ollama - V1.5"
 APP_DESCRIPTION = (
-    "Versión modular del chatbot local con Streamlit, Ollama, tools, RAG, memoria, sesiones y streaming en tiempo real."
+    "Versión modular del chatbot local con Streamlit, Ollama, tools, RAG, memoria, sesiones, streaming y carga de documentos."
 )
 MAX_MESSAGES = 6
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

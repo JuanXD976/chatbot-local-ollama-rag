@@ -35,6 +35,8 @@ from src.memory.memory_service import (
 )
 from src.routing.router import detect_intent, execute_user_message, stream_user_message
 
+from src.app.document_service import DocumentService
+
 configure_logging(LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
@@ -268,6 +270,25 @@ def render_session_sidebar(
             st.session_state.persistent_memory = []
             st.success("Memoria persistente borrada correctamente.")
             st.rerun()
+            
+        st.divider()
+        st.header("Documentos RAG")
+
+        uploaded_file = st.file_uploader(
+            "Subir documento",
+            type=["txt", "md"],
+        )
+
+        if uploaded_file:
+            if st.button("📥 Guardar documento", use_container_width=True):
+                saved_path = DocumentService.save_uploaded_file(uploaded_file)
+                st.success(f"Documento guardado correctamente: {saved_path}")
+
+        if st.button("🔄 Reconstruir Base Vectorial", use_container_width=True):
+            with st.spinner("Reconstruyendo embeddings..."):
+                total_chunks = DocumentService.rebuild_vectorstore()
+
+            st.success(f"Base vectorial reconstruida correctamente. Chunks indexados: {total_chunks}")
 
 
 def render_chat_messages() -> None:
@@ -360,7 +381,7 @@ def main() -> None:
     """
     chat_service, session_service = build_services()
 
-    st.set_page_config(page_title="Chatbot V1.4 Local", page_icon="🤖", layout="wide")
+    st.set_page_config(page_title="Chatbot V1.5 Local", page_icon="🤖", layout="wide")
     st.title(APP_TITLE)
     st.write(APP_DESCRIPTION)
     st.write(f"Modelo local actual: `{OLLAMA_CHAT_MODEL}`")
