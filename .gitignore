@@ -15,7 +15,8 @@ __pycache__/
 # Streamlit
 .streamlit/
 
-# Chroma / vectorstore
+# Chroma / vectorstore / raw
+data/raw/
 data/vectorstore/chroma_db/
 *.sqlite3
 

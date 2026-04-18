@@ -9,22 +9,21 @@ Motivo de su creación:
 
 from __future__ import annotations
 
-from src.llm.ollama_client import generate_response
+from typing import Generator
+
+from src.llm.ollama_client import generate_response, generate_response_stream
 from src.rag.retriever import format_retrieved_context, retrieve_documents
 
 
-def answer_with_rag(user_prompt: str) -> str:
+def build_rag_messages(user_prompt: str) -> list[dict[str, str]] | None:
     """
-    Responde a una consulta usando recuperación de contexto local + generación con el LLM.
+    Construye los mensajes para responder usando RAG.
     """
     retrieved_docs = retrieve_documents(user_prompt)
     context = format_retrieved_context(retrieved_docs)
 
     if not context:
-        return (
-            "No he encontrado información relevante en la base de conocimiento local "
-            "para responder a tu consulta."
-        )
+        return None
 
     messages = [
         {
@@ -53,4 +52,35 @@ def answer_with_rag(user_prompt: str) -> str:
         },
     ]
 
+    return messages
+
+
+def answer_with_rag(user_prompt: str) -> str:
+    """
+    Responde a una consulta usando recuperación de contexto local + generación con el LLM.
+    """
+    messages = build_rag_messages(user_prompt)
+
+    if not messages:
+        return (
+            "No he encontrado información relevante en la base de conocimiento local "
+            "para responder a tu consulta."
+        )
+
     return generate_response(messages)
+
+
+def answer_with_rag_stream(user_prompt: str) -> Generator[str, None, None]:
+    """
+    Variante streaming del pipeline RAG.
+    """
+    messages = build_rag_messages(user_prompt)
+
+    if not messages:
+        yield (
+            "No he encontrado información relevante en la base de conocimiento local "
+            "para responder a tu consulta."
+        )
+        return
+
+    yield from generate_response_stream(messages)

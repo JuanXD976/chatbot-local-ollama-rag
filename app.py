@@ -15,6 +15,7 @@ import streamlit as st
 from requests.exceptions import RequestException
 
 from src.app.chat_service import ChatService
+from src.app.document_service import DocumentService
 from src.app.orchestrator import ChatOrchestrator
 from src.app.session_service import SessionService
 from src.config.logging_config import configure_logging
@@ -24,18 +25,18 @@ from src.config.settings import (
     LOG_LEVEL,
     MAX_MESSAGES,
     OLLAMA_CHAT_MODEL,
+    RAG_SUPPORTED_EXTENSIONS,
     SESSION_FILE_PATH,
 )
 from src.core.exceptions import OllamaConnectionError, SessionError
 from src.llm.ollama_client import check_ollama_connection, clean_response
+from src.memory.memory_extractor import extract_memory_fact
 from src.memory.memory_service import (
     append_message_to_memory,
     get_persistent_memory,
     reset_persistent_memory,
 )
 from src.routing.router import detect_intent, execute_user_message, stream_user_message
-
-from src.app.document_service import DocumentService
 
 configure_logging(LOG_LEVEL)
 logger = logging.getLogger(__name__)
@@ -77,29 +78,6 @@ def build_memory_system_message(memory_messages: list[dict[str, str]]) -> dict[s
             + "\n".join(memory_lines)
         ),
     }
-
-
-def should_store_in_memory(prompt: str) -> bool:
-    """
-    Decide de forma simple si un mensaje del usuario merece persistirse como memoria.
-    """
-    prompt_lower = prompt.lower()
-
-    memory_keywords = [
-        "me llamo",
-        "mi nombre es",
-        "recuerda que",
-        "soy",
-        "trabajo en",
-        "mi empresa es",
-        "vivo en",
-        "estudio",
-        "mi color favorito es",
-        "me gusta",
-        "prefiero",
-    ]
-
-    return any(keyword in prompt_lower for keyword in memory_keywords)
 
 
 def build_services() -> tuple[ChatService, SessionService]:
@@ -188,6 +166,88 @@ def build_messages_for_model() -> list[dict[str, str]]:
     return messages_for_model
 
 
+def render_documents_block() -> None:
+    """
+    Dibuja la gestión documental del RAG en sidebar.
+    """
+    st.divider()
+    st.header("Documentos RAG")
+
+    status = DocumentService.get_rag_status()
+    documents = DocumentService.list_documents()
+
+    st.caption(f"Documentos cargados: {status['document_count']}")
+    st.caption(
+        "Formatos soportados: "
+        + ", ".join(ext.upper().replace(".", "") for ext in RAG_SUPPORTED_EXTENSIONS)
+    )
+
+    vectorstore_label = "Disponible" if status["vectorstore_exists"] else "Pendiente de reconstrucción"
+    if status["document_count"] == 0:
+        vectorstore_label = "Sin documentos"
+
+    st.caption(f"Base vectorial: {vectorstore_label}")
+
+    uploaded_file = st.file_uploader(
+        "Subir documento",
+        type=[ext.replace(".", "") for ext in RAG_SUPPORTED_EXTENSIONS],
+    )
+
+    if uploaded_file:
+        if st.button("📥 Guardar documento", use_container_width=True):
+            try:
+                saved_path = DocumentService.save_uploaded_file(uploaded_file)
+                st.success(f"Documento guardado correctamente: {saved_path}")
+                st.rerun()
+            except Exception as exc:
+                st.error(f"No se pudo guardar el documento. Error: {exc}")
+
+    if documents:
+        with st.expander("Ver documentos cargados", expanded=False):
+            for doc in documents:
+                col1, col2 = st.columns([4, 1])
+
+                with col1:
+                    size_kb = round(doc["size_bytes"] / 1024, 2)
+                    st.markdown(
+                        f"**{doc['name']}**  \n"
+                        f"`{doc['suffix']}` · `{size_kb} KB` · `{doc['modified_at']}`"
+                    )
+
+                with col2:
+                    if st.button(
+                        "🗑️",
+                        key=f"delete_doc_{doc['name']}",
+                        help=f"Eliminar {doc['name']}",
+                        use_container_width=True,
+                    ):
+                        deleted = DocumentService.delete_document(doc["name"])
+                        if deleted:
+                            st.success(f"Documento eliminado: {doc['name']}")
+                        else:
+                            st.warning(f"No se pudo eliminar: {doc['name']}")
+                        st.rerun()
+    else:
+        st.info("No hay documentos RAG todavía.")
+
+    if st.button("🔄 Reconstruir Base Vectorial", use_container_width=True):
+        if not documents:
+            st.warning("No hay documentos disponibles para indexar. Sube al menos uno antes de reconstruir.")
+            return
+
+        try:
+            with st.spinner("Reconstruyendo embeddings..."):
+                total_chunks = DocumentService.rebuild_vectorstore()
+
+            st.success(
+                f"Base vectorial reconstruida correctamente. Chunks indexados: {total_chunks}"
+            )
+        except RuntimeError as exc:
+            st.error(str(exc))
+            st.info("Reinicia Streamlit para liberar el vectorstore y vuelve a intentarlo.")
+        except Exception as exc:
+            st.error(f"No se pudo reconstruir la base vectorial. Error: {exc}")
+
 def render_session_sidebar(
     chat_service: ChatService,
     session_service: SessionService,
@@ -258,7 +318,6 @@ def render_session_sidebar(
                     mime="application/json",
                     use_container_width=True,
                 )
-
         else:
             st.info("Todavía no hay sesiones guardadas.")
 
@@ -270,25 +329,8 @@ def render_session_sidebar(
             st.session_state.persistent_memory = []
             st.success("Memoria persistente borrada correctamente.")
             st.rerun()
-            
-        st.divider()
-        st.header("Documentos RAG")
 
-        uploaded_file = st.file_uploader(
-            "Subir documento",
-            type=["txt", "md"],
-        )
-
-        if uploaded_file:
-            if st.button("📥 Guardar documento", use_container_width=True):
-                saved_path = DocumentService.save_uploaded_file(uploaded_file)
-                st.success(f"Documento guardado correctamente: {saved_path}")
-
-        if st.button("🔄 Reconstruir Base Vectorial", use_container_width=True):
-            with st.spinner("Reconstruyendo embeddings..."):
-                total_chunks = DocumentService.rebuild_vectorstore()
-
-            st.success(f"Base vectorial reconstruida correctamente. Chunks indexados: {total_chunks}")
+        render_documents_block()
 
 
 def render_chat_messages() -> None:
@@ -333,9 +375,6 @@ def handle_user_prompt(chat_service: ChatService) -> None:
                 ):
                     if event["type"] == "chunk":
                         raw_rendered_text += event["content"]
-
-                        # MUY IMPORTANTE:
-                        # limpiar el buffer completo acumulado, no solo el chunk
                         final_clean_text = clean_response(raw_rendered_text)
 
                         if final_clean_text:
@@ -353,8 +392,9 @@ def handle_user_prompt(chat_service: ChatService) -> None:
 
         st.session_state.messages.append({"role": "assistant", "content": reply})
 
-        if should_store_in_memory(prompt):
-            append_message_to_memory("user", prompt)
+        memory_fact = extract_memory_fact(prompt)
+        if memory_fact:
+            append_message_to_memory("user", memory_fact)
             st.session_state.persistent_memory = get_persistent_memory()
 
         logger.info("Respuesta emitida correctamente en modo streaming")
@@ -381,7 +421,7 @@ def main() -> None:
     """
     chat_service, session_service = build_services()
 
-    st.set_page_config(page_title="Chatbot V1.5 Local", page_icon="🤖", layout="wide")
+    st.set_page_config(page_title="Chatbot V1.6 Local", page_icon="🤖", layout="wide")
     st.title(APP_TITLE)
     st.write(APP_DESCRIPTION)
     st.write(f"Modelo local actual: `{OLLAMA_CHAT_MODEL}`")
@@ -412,5 +452,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-        
-

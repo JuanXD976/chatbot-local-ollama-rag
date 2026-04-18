@@ -16,12 +16,14 @@ load_dotenv()
 # =========================
 # APP
 # =========================
-APP_TITLE = "🤖 Chatbot Local con Ollama - V1.5"
+APP_TITLE = "🤖 Chatbot Local con Ollama - V1.6"
 APP_DESCRIPTION = (
-    "Versión modular del chatbot local con Streamlit, Ollama, tools, RAG, memoria, sesiones, streaming y carga de documentos."
+    "Versión modular del chatbot local con Streamlit, Ollama, tools, RAG, memoria, sesiones, "
+    "streaming y gestión documental completa."
 )
 MAX_MESSAGES = 6
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
 
 # =========================
 # OLLAMA
@@ -72,6 +74,7 @@ cuando haces una consulta, el retriever recupera los 4 chunks más relevantes
 RAG_CHUNK_SIZE = 800
 RAG_CHUNK_OVERLAP = 150
 RAG_TOP_K = 4
+RAG_SUPPORTED_EXTENSIONS = (".txt", ".md", ".pdf", ".docx")
 
 # =========================
 # MEMORY

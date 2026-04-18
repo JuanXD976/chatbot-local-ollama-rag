@@ -15,3 +15,5 @@ sentence-transformers
 torchvision
 torch
 torchaudio
+pypdf
+docx2txt

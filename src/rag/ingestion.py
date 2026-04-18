@@ -8,22 +8,50 @@ Motivo de su creación:
 - Almacenarlos en Chroma.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
-from annotated_types import doc
 from langchain_core.documents import Document
-from langchain_community.document_loaders import TextLoader
+from langchain_community.document_loaders import (
+    Docx2txtLoader,
+    PyPDFLoader,
+    TextLoader,
+)
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from src.config.settings import (
     RAG_CHUNK_OVERLAP,
     RAG_CHUNK_SIZE,
     RAG_RAW_DATA_PATH,
+    RAG_SUPPORTED_EXTENSIONS,
 )
 from src.rag.vectorstore import get_vectorstore
 
+def _load_single_file(file_path: Path) -> list[Document]:
+    """
+    Carga un archivo individual según su extensión.
+    """
+    suffix = file_path.suffix.lower()
 
-SUPPORTED_EXTENSIONS = {".txt", ".md"}
+    if suffix in {".txt", ".md"}:
+        loader = TextLoader(str(file_path), encoding="utf-8")
+    elif suffix == ".pdf":
+        loader = PyPDFLoader(str(file_path))
+    elif suffix == ".docx":
+        loader = Docx2txtLoader(str(file_path))
+    else:
+        raise ValueError(f"Extensión no soportada: {suffix}")
+
+    docs = loader.load()
+
+    for index, doc in enumerate(docs, start=1):
+        doc.metadata["source"] = str(file_path)
+        doc.metadata["source_name"] = file_path.name
+        doc.metadata["source_extension"] = suffix
+        doc.metadata["page_or_chunk"] = index
+
+    return docs
 
 
 def load_documents_from_directory(directory: str) -> list[Document]:
@@ -37,20 +65,14 @@ def load_documents_from_directory(directory: str) -> list[Document]:
         raise FileNotFoundError(f"No existe el directorio de documentos: {directory}")
 
     for file_path in base_path.rglob("*"):
-        if file_path.is_file() and file_path.suffix.lower() in SUPPORTED_EXTENSIONS:
-            loader = TextLoader(str(file_path), encoding="utf-8")
-            docs = loader.load()
-
-            for doc in docs:
-                doc.metadata["source"] = str(file_path)
-                doc.metadata["source_name"] = file_path.name
-
+        if file_path.is_file() and file_path.suffix.lower() in RAG_SUPPORTED_EXTENSIONS:
+            docs = _load_single_file(file_path)
             documents.extend(docs)
 
     if not documents:
         raise ValueError(
             f"No se encontraron documentos soportados en {directory}. "
-            f"Extensiones válidas: {SUPPORTED_EXTENSIONS}"
+            f"Extensiones válidas: {RAG_SUPPORTED_EXTENSIONS}"
         )
 
     return documents

@@ -18,7 +18,7 @@ from src.llm.ollama_client import (
     generate_response,
     generate_response_stream,
 )
-from src.rag.pipeline import answer_with_rag
+from src.rag.pipeline import answer_with_rag, answer_with_rag_stream
 from src.tools.tools import (
     calculate_expression,
     get_current_datetime,
@@ -59,6 +59,9 @@ def detect_intent(prompt: str) -> str:
         "busca en mis archivos",
         "archivos propios",
         "busca en nuestra base de datos",
+        "en mi base de datos",
+        "en mis pdfs",
+        "en mis docx",
         "nuestra bbdd",
     ]
     calc_keywords = ["calcula", "cuánto es", "cuanto es", "+", "-", "*", "/", "sqrt", "log"]
@@ -226,7 +229,7 @@ def execute_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
     if intent == "rag":
         logger.info("Ejecutando pipeline RAG")
         return {
-            "answer": answer_with_rag(prompt),
+            "answer": answer_with_rag_stream(prompt),
             "detected_intent": "rag",
             "tools_used": ["rag"],
             "sources": ["local_knowledge_base"],
@@ -315,11 +318,11 @@ def stream_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
 
     if intent == "rag":
         return {
-            "answer": answer_with_rag(prompt),
-            "detected_intent": "rag",
-            "tools_used": ["rag"],
-            "sources": ["local_knowledge_base"],
-        }
+                "stream": answer_with_rag_stream(prompt),
+                "detected_intent": "rag",
+                "tools_used": ["rag"],
+                "sources": ["local_knowledge_base"],
+            }
 
     if intent == "calculator":
         expression = extract_expression(prompt)

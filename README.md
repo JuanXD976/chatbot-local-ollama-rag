@@ -1,6 +1,6 @@
-# 🤖 Chatbot Local con Ollama — V1.4
+# 🤖 Chatbot Local con Ollama — V1.6
 
-Versión 1.4 de un chatbot local desarrollado en Python utilizando **Streamlit**, **Ollama**, **RAG con ChromaDB**, **tools externas**, **memoria persistente**, **sesiones conversacionales** y **streaming en tiempo real**.
+Versión 1.6 de un chatbot local desarrollado en Python utilizando **Streamlit**, **Ollama**, **RAG con ChromaDB**, **tools externas**, **memoria persistente**, **sesiones conversacionales**, **streaming en tiempo real** y **gestión documental completa**.
 
 El objetivo del proyecto es construir un asistente conversacional local escalable y modular que combine generación con LLM, herramientas externas, recuperación documental y memoria persistente, siguiendo buenas prácticas de software engineering aplicadas a IA.
 
@@ -17,20 +17,22 @@ El objetivo del proyecto es construir un asistente conversacional local escalabl
 ---
 
 ## ⚡ Streaming de respuesta en tiempo real
-- Respuesta progresiva token/chunk a chunk.
+- Respuesta progresiva chunk a chunk.
 - Renderizado dinámico tipo ChatGPT.
 - Indicador visual de "pensando".
-- Limpieza automática de tokens internos/residuales del modelo.
+- Limpieza automática de tokens internos y residuos del modelo.
 - Soporte para respuestas largas mejorado.
+- Streaming también para respuestas documentales RAG.
 
 ---
 
-## 🧠 Memoria persistente
+## 🧠 Memoria persistente mejorada
 - Persistencia entre sesiones.
 - Recordatorio de información importante del usuario.
 - Prevención de duplicados.
-- Filtrado de memoria inteligente básico.
-- Limpieza manual desde interfaz.
+- Extracción más inteligente de hechos útiles del usuario.
+- Evita guardar ruido innecesario como prompts temporales.
+- Limpieza manual desde la interfaz.
 
 ---
 
@@ -44,6 +46,26 @@ El objetivo del proyecto es construir un asistente conversacional local escalabl
 
 ---
 
+## 📚 Gestión documental completa para RAG
+- Subida de documentos desde la interfaz.
+- Listado de documentos cargados.
+- Eliminación individual de documentos.
+- Reconstrucción de la base vectorial desde UI.
+- Estado visual del módulo documental.
+- Prevención de sobreescritura accidental de archivos.
+- Manejo robusto de errores de reconstrucción.
+
+---
+
+## 📄 Soporte de formatos documentales
+Formatos soportados actualmente:
+- `.txt`
+- `.md`
+- `.pdf`
+- `.docx`
+
+---
+
 ## 🌐 Búsqueda web
 - Integración con Tavily Search API.
 - Información en tiempo real desde internet.
@@ -53,9 +75,10 @@ El objetivo del proyecto es construir un asistente conversacional local escalabl
 
 ## 🌦 Weather Tool
 - Tiempo actual.
+- Predicción diaria.
 - Predicción semanal.
 - Predicción próxima semana.
-- Predicción fin de semana.
+- Predicción próximo fin de semana.
 - Geocoding automático de ciudades.
 
 ---
@@ -72,17 +95,10 @@ El objetivo del proyecto es construir un asistente conversacional local escalabl
 - Soporte para:
   - suma/resta
   - multiplicación/división
+  - potencias
+  - módulo
   - sqrt/log/log10
-  - trigonometría
-
----
-
-## 📚 Sistema RAG
-- Base vectorial local con ChromaDB.
-- Recuperación semántica de documentos.
-- Embeddings con SentenceTransformers.
-- Prompt RAG optimizado.
-- Limpieza de metadatos/rutas técnicas.
+  - trigonometría básica
 
 ---
 
@@ -94,17 +110,15 @@ El objetivo del proyecto es construir un asistente conversacional local escalabl
 
 ---
 
-# 🏗 Arquitectura del proyecto
-
-El proyecto sigue una arquitectura modular profesional separada por responsabilidades:
+# 🏗 Arquitectura
 
 ```text
 src/
-├── app/            # Capa de aplicación / servicios / orquestación
+├── app/            # Servicios de aplicación / orquestación / documentos / sesiones
 ├── config/         # Configuración global / logging / settings
-├── core/           # Modelos internos / excepciones custom
-├── llm/            # Cliente Ollama / generación LLM
-├── memory/         # Memoria persistente / storage
+├── core/           # Modelos internos / excepciones personalizadas
+├── llm/            # Cliente Ollama / generación / streaming
+├── memory/         # Memoria persistente / extracción de memoria útil
 ├── rag/            # Pipeline RAG / ingestion / retrieval / vectorstore
 ├── routing/        # Router de intenciones
 ├── tools/          # Herramientas externas integradas
@@ -128,6 +142,10 @@ src/
 
 ### Vector Database
 - ChromaDB
+
+### Document processing
+- PyPDF
+- Docx2txt
 
 ### APIs externas
 - Tavily Search API
@@ -175,7 +193,8 @@ data/raw/
 Formatos recomendados:
 - `.txt`
 - `.md`
-
+- `.pdf`
+- `.docx`
 ---
 
 ## Construcción de embeddings
@@ -185,6 +204,9 @@ Ejecutar:
 ```bash
 python -m src.rag.ingestion
 ```
+
+Reconstrucción embeddings desde la UI:
+- botón “Reconstruir Base Vectorial”
 
 Esto:
 
@@ -211,6 +233,9 @@ Crear archivo `.env`:
 
 ```env
 TAVILY_API_KEY=TU_API_KEY
+OLLAMA_MAX_TOKENS=1200
+OLLAMA_CHAT_MODEL=gemma3:4
+LOG_LEVEL=INFO
 ```
 
 ---
@@ -265,12 +290,11 @@ Mi nombre es Juan
 
 Próximas mejoras previstas:
 
-- [ ] Upload de documentos desde UI.
-- [ ] Smart Memory Manager.
-- [ ] Backend desacoplado FastAPI.
-- [ ] Frontend React/Next.js.
-- [ ] Dockerización.
-- [ ] Testing automatizado.
+- [ ] Migración a backend FastAPI.
+- [ ] Migración a frontend React / Next.js.
+- [ ] Separación completa entre frontend y backend.
+- [ ] Consumo de endpoints vía API.
+- [ ] Arquitectura más cercana a entorno de producción.
 
 ---
 
