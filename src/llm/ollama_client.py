@@ -56,7 +56,7 @@ def check_ollama_connection() -> dict:
 def clean_response(text: Optional[str]) -> str:
     """
     Limpia la respuesta generada por el modelo eliminando tokens internos,
-    etiquetas técnicas y espacios sobrantes.
+    etiquetas técnicas y residuos de plantillas de chat.
     """
     if not text:
         return ""
@@ -64,26 +64,32 @@ def clean_response(text: Optional[str]) -> str:
     if not isinstance(text, str):
         text = str(text)
 
+    # Limpieza directa por reemplazo
     for token in STREAM_EXACT_TOKENS:
         text = text.replace(token, "")
 
-    # tokens estilo <|...|>
+    # Tokens estilo <|...|>
     text = re.sub(r"<\|[^>]+\|>", "", text)
 
-    # tokens estilo <im_start>, <im_end>, etc.
-    text = re.sub(r"<[a-zA-Z0-9_\/\-]+>", "", text)
+    # Tokens estilo <im_start>, <im_end>, <algo>
+    text = re.sub(r"<[a-zA-Z0-9_\-/]+>", "", text)
 
-    # roles residuales
+    # Casos tipo "assistant:", "user:", "system:"
+    text = re.sub(r"\b(system|assistant|user)\s*:", "", text, flags=re.IGNORECASE)
+
+    # Casos tipo "assistant>" "user>" "system>"
     text = re.sub(r"\b(system|assistant|user)\s*>", "", text, flags=re.IGNORECASE)
 
-    # secuencias raras repetidas por plantillas de chat
-    text = re.sub(r"\b(system|assistant|user)\b\s*:", "", text, flags=re.IGNORECASE)
+    # Eliminar restos de etiquetas tipo chatml concatenadas
+    text = re.sub(r"\b(im_start|im_end)\b", "", text, flags=re.IGNORECASE)
 
+    # Normalización de saltos y espacios
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"\n{3,}", "\n\n", text)
     text = re.sub(r"[ \t]{2,}", " ", text)
 
     return text.strip()
+
 
 def clean_stream_chunk(text: Optional[str]) -> str:
     """
@@ -99,14 +105,10 @@ def clean_stream_chunk(text: Optional[str]) -> str:
         text = text.replace(token, "")
 
     text = re.sub(r"<\|[^>]+\|>", "", text)
-    text = re.sub(r"<[^>]+>", "", text)
-
-    text = re.sub(
-        r"(system|assistant|user)\s*>",
-        "",
-        text,
-        flags=re.IGNORECASE,
-    )
+    text = re.sub(r"<[a-zA-Z0-9_\-/]+>", "", text)
+    text = re.sub(r"\b(system|assistant|user)\s*:", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(system|assistant|user)\s*>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(im_start|im_end)\b", "", text, flags=re.IGNORECASE)
 
     text = text.replace("\r\n", "\n").replace("\r", "\n")
 
@@ -247,6 +249,10 @@ def format_tool_result_with_llm(user_prompt: str, tool_name: str, tool_result: s
                 "Si la herramienta devuelve una lista completa de elementos, como varios días de una previsión, "
                 "debes incluirlos todos. "
                 "No menciones nombres internos como 'tool', 'router', 'API' o 'tool_result'."
+                "Debes responder SIEMPRE de forma práctica. "
+                "Si el usuario pide cómo hacer algo, incluye pasos y ejemplo de código. "
+                "Si el contexto contiene ejemplos técnicos, reutilízalos. "
+                "No te limites a explicar, enseña cómo aplicarlo."
             ),
         },
         {

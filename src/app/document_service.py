@@ -35,9 +35,6 @@ class DocumentService:
 
     @staticmethod
     def list_documents() -> list[dict]:
-        """
-        Lista los documentos disponibles en data/raw.
-        """
         raw_path = DocumentService._raw_path()
 
         documents = []
@@ -63,8 +60,7 @@ class DocumentService:
     @staticmethod
     def save_uploaded_file(uploaded_file) -> str:
         """
-        Guarda un archivo subido en data/raw evitando sobreescritura accidental.
-        Si ya existe, crea un nombre incremental.
+        Compatibilidad con Streamlit.
         """
         raw_path = DocumentService._raw_path()
 
@@ -97,10 +93,42 @@ class DocumentService:
         return str(candidate_path)
 
     @staticmethod
+    def save_file_bytes(filename: str, content: bytes) -> str:
+        """
+        Compatibilidad con FastAPI / backend.
+        """
+        raw_path = DocumentService._raw_path()
+
+        safe_name = Path(filename).name
+        suffix = Path(safe_name).suffix.lower()
+
+        if suffix not in RAG_SUPPORTED_EXTENSIONS:
+            raise ValueError(
+                f"Extensión no soportada: {suffix}. "
+                f"Formatos válidos: {', '.join(RAG_SUPPORTED_EXTENSIONS)}"
+            )
+
+        candidate_path = raw_path / safe_name
+
+        if candidate_path.exists():
+            stem = candidate_path.stem
+            counter = 1
+
+            while True:
+                new_name = f"{stem}_{counter}{suffix}"
+                new_path = raw_path / new_name
+                if not new_path.exists():
+                    candidate_path = new_path
+                    break
+                counter += 1
+
+        with open(candidate_path, "wb") as f:
+            f.write(content)
+
+        return str(candidate_path)
+
+    @staticmethod
     def delete_document(filename: str) -> bool:
-        """
-        Elimina un documento concreto de data/raw.
-        """
         safe_name = Path(filename).name
         file_path = DocumentService._raw_path() / safe_name
 
@@ -112,9 +140,6 @@ class DocumentService:
 
     @staticmethod
     def rebuild_vectorstore() -> int:
-        """
-        Reconstruye la base vectorial desde cero para evitar duplicados.
-        """
         documents = DocumentService.list_documents()
         if not documents:
             raise ValueError("No hay documentos disponibles para indexar.")
@@ -126,17 +151,14 @@ class DocumentService:
                 shutil.rmtree(chroma_path)
             except Exception as exc:
                 raise RuntimeError(
-                    "No se puede reconstruir ahora mismo porque la base vectorial está en uso.\n"
-                    "Solución: reinicia la aplicación y vuelve a intentarlo."
+                    "No se puede reconstruir ahora mismo porque la base vectorial está en uso. "
+                    "Reinicia la aplicación o el backend y vuelve a intentarlo."
                 ) from exc
 
         return ingest_documents()
 
     @staticmethod
     def get_rag_status() -> dict:
-        """
-        Devuelve un estado simple del módulo documental/RAG.
-        """
         document_count = DocumentService.count_documents()
         vectorstore_exists = DocumentService._vectorstore_path().exists()
 

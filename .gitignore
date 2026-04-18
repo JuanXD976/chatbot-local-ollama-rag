@@ -1,18 +1,34 @@
-# Entorno virtual
-venv/
-.venv/
-
-# Variables de entorno
-.env
-.env.*
-
-# Python
+# =========================
+# PYTHON
+# =========================
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
+*.so
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# Streamlit
+# =========================
+# VENV
+# =========================
+venv/
+.venv/
+env/
+
+# =========================
+# ENV FILES
+# =========================
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# =========================
+# STREAMLIT / LEGACY CACHE
+# =========================
 .streamlit/
 
 # Chroma / vectorstore / raw
@@ -22,6 +38,20 @@ data/vectorstore/chroma_db/
 
 # Memoria persistente real del usuario
 data/memory/
+
+# =========================
+# NODE / NEXT
+# =========================
+src/frontend/node_modules/
+src/frontend/.next/
+src/frontend/out/
+src/frontend/.turbo/
+src/frontend/.vercel/
+
+# If frontend stays at root later, keep these too
+node_modules/
+.next/
+out/
 
 # HuggingFace / cache
 .cache/
@@ -36,12 +66,16 @@ Thumbs.db
 .idea/
 .vscode/
 
-# Logs
+# =========================
+# LOGS
+# =========================
 *.log
+logs/
 
 # Jupyter
 .ipynb_checkpoints/
 
 # apuntes
+docs/
 estructura.txt
 pasos_a_tener_en_cuenta.txt

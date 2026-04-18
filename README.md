@@ -1,183 +1,126 @@
-# 🤖 Chatbot Local con Ollama — V1.6
+# 🤖 Chatbot Local con Ollama — V2.0
 
-Versión 1.6 de un chatbot local desarrollado en Python utilizando **Streamlit**, **Ollama**, **RAG con ChromaDB**, **tools externas**, **memoria persistente**, **sesiones conversacionales**, **streaming en tiempo real** y **gestión documental completa**.
+Versión 2.0 del proyecto, migrada a una arquitectura desacoplada con **FastAPI** como backend y **Next.js** como frontend, reutilizando el core modular de IA desarrollado en versiones anteriores.
 
-El objetivo del proyecto es construir un asistente conversacional local escalable y modular que combine generación con LLM, herramientas externas, recuperación documental y memoria persistente, siguiendo buenas prácticas de software engineering aplicadas a IA.
-
----
-
-# 🚀 Funcionalidades actuales
-
-## 💬 Chat conversacional local
-- Generación de respuestas mediante modelo LLM local ejecutado en Ollama.
-- Gestión de historial conversacional.
-- Prompt de sistema configurable.
-- Limitación de contexto mediante ventana configurable.
+El objetivo de esta versión es transformar el chatbot local en una aplicación más cercana a un entorno real de producto, separando claramente la capa de interfaz de usuario de la lógica de negocio, RAG, memoria, tools y sesiones.
 
 ---
 
-## ⚡ Streaming de respuesta en tiempo real
-- Respuesta progresiva chunk a chunk.
-- Renderizado dinámico tipo ChatGPT.
-- Indicador visual de "pensando".
-- Limpieza automática de tokens internos y residuos del modelo.
-- Soporte para respuestas largas mejorado.
-- Streaming también para respuestas documentales RAG.
+# 🚀 Novedades principales de la V2.0
 
----
-
-## 🧠 Memoria persistente mejorada
-- Persistencia entre sesiones.
-- Recordatorio de información importante del usuario.
-- Prevención de duplicados.
-- Extracción más inteligente de hechos útiles del usuario.
-- Evita guardar ruido innecesario como prompts temporales.
-- Limpieza manual desde la interfaz.
-
----
-
-## 📂 Gestión visual de sesiones
-- Sidebar de historial conversacional.
-- Creación de nuevas conversaciones.
-- Carga de sesiones anteriores.
-- Eliminación de sesiones.
-- Exportación de sesiones en JSON.
-- Resaltado visual de sesión activa.
-
----
-
-## 📚 Gestión documental completa para RAG
-- Subida de documentos desde la interfaz.
-- Listado de documentos cargados.
-- Eliminación individual de documentos.
-- Reconstrucción de la base vectorial desde UI.
-- Estado visual del módulo documental.
-- Prevención de sobreescritura accidental de archivos.
-- Manejo robusto de errores de reconstrucción.
-
----
-
-## 📄 Soporte de formatos documentales
-Formatos soportados actualmente:
-- `.txt`
-- `.md`
-- `.pdf`
-- `.docx`
-
----
-
-## 🌐 Búsqueda web
-- Integración con Tavily Search API.
-- Información en tiempo real desde internet.
-- Reformateo natural mediante LLM.
-
----
-
-## 🌦 Weather Tool
-- Tiempo actual.
-- Predicción diaria.
-- Predicción semanal.
-- Predicción próxima semana.
-- Predicción próximo fin de semana.
-- Geocoding automático de ciudades.
-
----
-
-## 🕒 DateTime Tool
-- Hora actual.
-- Fecha actual.
-- Hora por ubicación.
-
----
-
-## 🧮 Calculadora
-- Operaciones matemáticas seguras.
-- Soporte para:
-  - suma/resta
-  - multiplicación/división
-  - potencias
-  - módulo
-  - sqrt/log/log10
-  - trigonometría básica
-
----
-
-## 📋 Logging interno
-- Registro de flujo de ejecución.
-- Registro de intención detectada.
-- Registro de tools usadas.
-- Registro de errores.
+- Migración desde interfaz monolítica en Streamlit a arquitectura **frontend + backend**.
+- Backend con **FastAPI**.
+- Frontend con **Next.js + React + TypeScript**.
+- Reutilización del core existente:
+  - LLM local con Ollama
+  - router de intenciones
+  - tools
+  - RAG
+  - memoria persistente
+  - sesiones
+- Soporte para streaming de respuestas desde backend.
+- Gestión documental del RAG desde interfaz web.
+- Base preparada para seguir evolucionando hacia una arquitectura de producto más profesional.
 
 ---
 
 # 🏗 Arquitectura
 
 ```text
-src/
-├── app/            # Servicios de aplicación / orquestación / documentos / sesiones
-├── config/         # Configuración global / logging / settings
-├── core/           # Modelos internos / excepciones personalizadas
-├── llm/            # Cliente Ollama / generación / streaming
-├── memory/         # Memoria persistente / extracción de memoria útil
-├── rag/            # Pipeline RAG / ingestion / retrieval / vectorstore
-├── routing/        # Router de intenciones
-├── tools/          # Herramientas externas integradas
-└── utils/          # Utilidades auxiliares
+Usuario
+   ↓
+Next.js Frontend
+   ↓
+FastAPI Backend
+   ↓
+Core IA reutilizado
+   ├── LLM local con Ollama
+   ├── Router de intenciones
+   ├── Tools
+   ├── RAG con ChromaDB
+   ├── Memoria persistente
+   └── Sesiones
 ```
 ---
-
 ---
 
-# ⚙️ Stack tecnológico utilizado
-
-### Backend / Core
-- Python 3.13
-- Ollama
-- Streamlit
-
-### IA / NLP
-- SentenceTransformers
-- Transformers
-- LangChain
-
-### Vector Database
-- ChromaDB
-
-### Document processing
-- PyPDF
-- Docx2txt
-
-### APIs externas
-- Tavily Search API
-- Open Meteo API
-- Open Meteo Geocoding API
-
----
-
----
-
-# 🧠 Flujo de procesamiento interno
-
-El chatbot sigue el siguiente flujo lógico:
+# 📂 Estructura del proyecto
 
 ```text
-Usuario
-   ↓
-Interfaz Streamlit
-   ↓
-ChatService
-   ↓
-ChatOrchestrator
-   ↓
-Router de intenciones
-   ↓
-( Tool / RAG / LLM )
-   ↓
-Respuesta estructurada
-   ↓
-Usuario
+V1/
+├── data/
+│   ├── memory/
+│   ├── raw/
+│   └── vectorstore/
+├── legacy/
+│   └── streamlit/
+├── src/
+│   ├── api/
+│   ├── app/
+│   ├── config/
+│   ├── core/
+│   ├── frontend/
+│   ├── llm/
+│   ├── memory/
+│   ├── rag/
+│   ├── routing/
+│   ├── tools/
+│   └── utils/
+├── .env
+├── .gitignore
+├── README.md
+└── requirements.txt
 ```
 ---
+---
+
+# ⚙️ Backend (FastAPI)
+
+La carpeta src/api/ contiene la capa API del proyecto.
+
+- Endpoints principales
+- GET /health
+- POST /chat
+- POST /chat/stream
+- GET /sessions
+- POST /sessions
+- GET /sessions/{session_id}
+- DELETE /sessions/{session_id}
+- GET /documents
+- POST /documents/upload
+- DELETE /documents/{filename}
+- POST /documents/rebuild
+- POST /memory/reset
+
+Swagger disponible en:
+```text
+http://127.0.0.1:8000/docs
+```
+
+# 🖥 Frontend (Next.js)
+
+La carpeta src/frontend/ contiene el frontend del proyecto.
+
+- Funcionalidades actuales de interfaz
+- Sidebar de sesiones
+- Gestión de memoria persistente
+- Gestión documental RAG
+- Chat con streaming
+- Consumo de backend vía API
+- Base de diseño ya desacoplada del core Python
+
+# 🧠 Core IA reutilizado
+
+La lógica de inteligencia artificial sigue residiendo en src/:
+
+- src/llm/ → cliente Ollama
+- src/routing/ → router de intenciones
+- src/rag/ → pipeline RAG
+- src/memory/ → memoria persistente
+- src/tools/ → tools externas
+- src/app/ → servicios de aplicación, sesiones, documentos, orquestación
+---
+
 ---
 
 # 📂 Sistema RAG
@@ -219,12 +162,23 @@ Esto:
 
 # ▶️ Ejecución del proyecto
 
-Lanzar la aplicación con:
+## 1. Backend
 
+Desde la raíz del proyecto:
 ```bash
-streamlit run app.py
+uvicorn src.api.main:app --reload
 ```
+## 2. Frontend
 
+Desde src/frontend:
+```bash
+npm install
+npm run dev
+```
+## URLs
+- Frontend: http://localhost:3000
+- Backend: http://127.0.0.1:8000
+- Swagger: http://127.0.0.1:8000/docs
 ---
 
 # 🔑 Variables de entorno necesarias
@@ -237,7 +191,10 @@ OLLAMA_MAX_TOKENS=1200
 OLLAMA_CHAT_MODEL=gemma3:4
 LOG_LEVEL=INFO
 ```
-
+## Frontend (src/frontend/.env.local)
+```env
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+```
 ---
 
 # 📌 Ejemplos de prompts soportados
@@ -290,11 +247,12 @@ Mi nombre es Juan
 
 Próximas mejoras previstas:
 
-- [ ] Migración a backend FastAPI.
-- [ ] Migración a frontend React / Next.js.
-- [ ] Separación completa entre frontend y backend.
-- [ ] Consumo de endpoints vía API.
-- [ ] Arquitectura más cercana a entorno de producción.
+- [ ] pulido visual del frontend
+- [ ] limpieza completa de tokens residuales del modelo
+- [ ] mejora del comportamiento del RAG
+- [ ] componentes React separados
+- [ ] mejora del sidebar y experiencia de usuario
+- [ ] futura preparación para despliegue
 
 ---
 
@@ -312,3 +270,15 @@ Proyecto desarrollado como práctica personal para:
 # 👨‍💻 Autor
 
 Desarrollado por Juan Antonio como proyecto personal de aprendizaje y portfolio.
+
+---
+
+# 7. Mi recomendación final de limpieza
+
+Haz esto antes de seguir con nuevas mejoras:
+
+## mover Streamlit a legacy
+```text
+legacy/streamlit/app_streamlit_v1.py
+```
+---

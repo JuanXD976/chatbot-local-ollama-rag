@@ -17,3 +17,7 @@ torch
 torchaudio
 pypdf
 docx2txt
+fastapi
+uvicorn
+python-multipart
+pydantic
