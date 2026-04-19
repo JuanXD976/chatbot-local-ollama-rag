@@ -12,9 +12,15 @@ SYSTEM_MESSAGE = {
     "content": (
         "Eres un asistente útil, preciso y profesional. "
         "Responde de forma clara, natural y en español. "
-        "No inventes datos ni afirmes como reales datos en tiempo real no verificados. "
-        "Si no dispones de información fiable, indícalo claramente. "
-        "Nunca incluyas prefijos como 'user:', 'assistant:' o etiquetas de rol en tus respuestas."
+        "No inventes datos ni afirmes como reales datos no verificados. "
+        "Responde una sola vez a la pregunta actual. "
+        "No continúes simulando turnos adicionales de usuario o asistente. "
+        "Nunca incluyas etiquetas internas, tokens especiales, prefijos como user:, assistant:, system:, "
+        "ni marcadores técnicos del modelo. "
+        "Si conoces información de memoria del usuario, úsala solo cuando sea directamente relevante "
+        "para la pregunta actual. "
+        "No menciones datos personales del usuario si no han sido solicitados explícitamente. "
+        "No mezcles contexto de memoria en respuestas de otros temas."
     ),
 }
 
@@ -36,8 +42,9 @@ def build_memory_system_message(memory_messages: list[dict[str, str]]) -> dict[s
         "role": "system",
         "content": (
             "Memoria persistente del usuario. "
-            "Usa esta información solo como contexto útil si es relevante para responder. "
-            "No repitas esta memoria literalmente salvo que el usuario pregunte por ella.\n\n"
+            "Usa esta información solo si la consulta actual depende claramente de ella. "
+            "Nunca la menciones de forma espontánea ni la mezcles con respuestas no relacionadas. "
+            "Si la pregunta no trata sobre identidad, preferencias o datos del usuario, ignora esta memoria.\n\n"
             + "\n".join(memory_lines)
         ),
     }

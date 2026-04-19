@@ -2,24 +2,24 @@
 Servicio de gestión documental.
 
 Motivo:
-- Gestionar subida de archivos.
-- Listar documentos disponibles.
-- Eliminar documentos.
-- Reconstruir la base vectorial del RAG.
+- Guardar archivos.
+- Listarlos.
+- Eliminarlos.
+- Indexarlos automáticamente.
+- Reindexar el corpus completo cuando sea necesario.
 """
 
 from __future__ import annotations
 
-import shutil
 from datetime import datetime
 from pathlib import Path
 
 from src.config.settings import (
-    RAG_CHROMA_PATH,
     RAG_RAW_DATA_PATH,
     RAG_SUPPORTED_EXTENSIONS,
 )
-from src.rag.ingestion import ingest_documents
+from src.rag.ingestion import ingest_documents, ingest_single_file, remove_file_from_index
+from src.rag.vectorstore import count_indexed_chunks
 
 
 class DocumentService:
@@ -28,10 +28,6 @@ class DocumentService:
         raw_path = Path(RAG_RAW_DATA_PATH)
         raw_path.mkdir(parents=True, exist_ok=True)
         return raw_path
-
-    @staticmethod
-    def _vectorstore_path() -> Path:
-        return Path(RAG_CHROMA_PATH)
 
     @staticmethod
     def list_documents() -> list[dict]:
@@ -58,45 +54,7 @@ class DocumentService:
         return len(DocumentService.list_documents())
 
     @staticmethod
-    def save_uploaded_file(uploaded_file) -> str:
-        """
-        Compatibilidad con Streamlit.
-        """
-        raw_path = DocumentService._raw_path()
-
-        original_name = Path(uploaded_file.name).name
-        suffix = Path(original_name).suffix.lower()
-
-        if suffix not in RAG_SUPPORTED_EXTENSIONS:
-            raise ValueError(
-                f"Extensión no soportada: {suffix}. "
-                f"Formatos válidos: {', '.join(RAG_SUPPORTED_EXTENSIONS)}"
-            )
-
-        candidate_path = raw_path / original_name
-
-        if candidate_path.exists():
-            stem = candidate_path.stem
-            counter = 1
-
-            while True:
-                new_name = f"{stem}_{counter}{suffix}"
-                new_path = raw_path / new_name
-                if not new_path.exists():
-                    candidate_path = new_path
-                    break
-                counter += 1
-
-        with open(candidate_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-
-        return str(candidate_path)
-
-    @staticmethod
-    def save_file_bytes(filename: str, content: bytes) -> str:
-        """
-        Compatibilidad con FastAPI / backend.
-        """
+    def _resolve_safe_destination(filename: str) -> Path:
         raw_path = DocumentService._raw_path()
 
         safe_name = Path(filename).name
@@ -122,21 +80,46 @@ class DocumentService:
                     break
                 counter += 1
 
-        with open(candidate_path, "wb") as f:
-            f.write(content)
-
-        return str(candidate_path)
+        return candidate_path
 
     @staticmethod
-    def delete_document(filename: str) -> bool:
+    def save_file_bytes(filename: str, content: bytes) -> tuple[str, int]:
+        """
+        Guarda un archivo y lo indexa automáticamente.
+        Si la indexación falla, revierte guardado.
+        """
+        destination = DocumentService._resolve_safe_destination(filename)
+
+        with open(destination, "wb") as f:
+            f.write(content)
+
+        try:
+            indexed_chunks = ingest_single_file(destination)
+            return str(destination), indexed_chunks
+        except Exception:
+            if destination.exists():
+                destination.unlink()
+            raise
+
+    @staticmethod
+    def save_uploaded_file(uploaded_file) -> tuple[str, int]:
+        return DocumentService.save_file_bytes(uploaded_file.name, uploaded_file.getbuffer())
+
+    @staticmethod
+    def delete_document(filename: str) -> dict:
         safe_name = Path(filename).name
         file_path = DocumentService._raw_path() / safe_name
 
         if not file_path.exists() or not file_path.is_file():
-            return False
+            return {"deleted_file": False, "deleted_chunks": 0}
 
+        deleted_chunks = remove_file_from_index(safe_name)
         file_path.unlink()
-        return True
+
+        return {
+            "deleted_file": True,
+            "deleted_chunks": deleted_chunks,
+        }
 
     @staticmethod
     def rebuild_vectorstore() -> int:
@@ -144,26 +127,16 @@ class DocumentService:
         if not documents:
             raise ValueError("No hay documentos disponibles para indexar.")
 
-        chroma_path = DocumentService._vectorstore_path()
-
-        if chroma_path.exists():
-            try:
-                shutil.rmtree(chroma_path)
-            except Exception as exc:
-                raise RuntimeError(
-                    "No se puede reconstruir ahora mismo porque la base vectorial está en uso. "
-                    "Reinicia la aplicación o el backend y vuelve a intentarlo."
-                ) from exc
-
         return ingest_documents()
 
     @staticmethod
     def get_rag_status() -> dict:
         document_count = DocumentService.count_documents()
-        vectorstore_exists = DocumentService._vectorstore_path().exists()
+        indexed_chunks = count_indexed_chunks()
 
         return {
             "document_count": document_count,
-            "vectorstore_exists": vectorstore_exists and document_count > 0,
+            "indexed_chunks": indexed_chunks,
+            "vectorstore_exists": indexed_chunks > 0,
             "supported_extensions": list(RAG_SUPPORTED_EXTENSIONS),
         }

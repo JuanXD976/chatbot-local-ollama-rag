@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from typing import List, Optional
+
 from pydantic import BaseModel
-from typing import Optional, List
 
 
 class ChatRequest(BaseModel):
@@ -15,6 +16,16 @@ class ChatResponse(BaseModel):
     detected_intent: str
     tools_used: List[str]
     sources: List[str]
+
+
+class HealthResponse(BaseModel):
+    ok: bool
+    ollama_connected: bool
+    model: str
+    model_available: bool
+    document_count: int
+    indexed_chunks: int
+    vectorstore_exists: bool
 
 
 class SessionSummary(BaseModel):
@@ -41,6 +52,7 @@ class SessionDetail(BaseModel):
 class UploadResponse(BaseModel):
     path: str
     filename: str
+    indexed_chunks: int
 
 
 class RebuildResponse(BaseModel):

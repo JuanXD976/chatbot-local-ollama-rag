@@ -29,13 +29,25 @@ export type DocumentItem = {
   modified_at: string;
 };
 
-export async function healthCheck() {
+export type HealthData = {
+  ok: boolean;
+  ollama_connected: boolean;
+  model: string;
+  model_available: boolean;
+  document_count: number;
+  indexed_chunks: number;
+  vectorstore_exists: boolean;
+};
+
+export async function healthCheck(): Promise<HealthData> {
   const res = await fetch(`${API_URL}/health`, { cache: "no-store" });
+  if (!res.ok) throw new Error("No se pudo consultar el estado del backend.");
   return res.json();
 }
 
 export async function listSessions(): Promise<SessionSummary[]> {
   const res = await fetch(`${API_URL}/sessions`, { cache: "no-store" });
+  if (!res.ok) throw new Error("No se pudieron cargar las sesiones.");
   return res.json();
 }
 
@@ -43,6 +55,7 @@ export async function createSession(): Promise<SessionSummary> {
   const res = await fetch(`${API_URL}/sessions`, {
     method: "POST",
   });
+  if (!res.ok) throw new Error("No se pudo crear la sesión.");
   return res.json();
 }
 
@@ -58,11 +71,13 @@ export async function deleteSession(sessionId: string) {
   const res = await fetch(`${API_URL}/sessions/${sessionId}`, {
     method: "DELETE",
   });
+  if (!res.ok) throw new Error("No se pudo eliminar la sesión.");
   return res.json();
 }
 
 export async function listDocuments() {
   const res = await fetch(`${API_URL}/documents`, { cache: "no-store" });
+  if (!res.ok) throw new Error("No se pudieron cargar los documentos.");
   return res.json();
 }
 
@@ -90,7 +105,7 @@ export async function rebuildDocuments() {
 
   if (!res.ok) {
     const error = await res.json();
-    throw new Error(error.detail || "No se pudo reconstruir la base vectorial.");
+    throw new Error(error.detail || "No se pudo reindexar la base vectorial.");
   }
 
   return res.json();
@@ -113,6 +128,7 @@ export async function resetMemory() {
   const res = await fetch(`${API_URL}/memory/reset`, {
     method: "POST",
   });
+  if (!res.ok) throw new Error("No se pudo resetear la memoria.");
   return res.json();
 }
 
@@ -120,7 +136,7 @@ export async function chatStream(
   message: string,
   sessionId?: string | null,
   onChunk?: (chunk: string) => void
-): Promise<{ sessionId: string; finalText: string }> {
+): Promise<{ sessionId: string; finalText: string; detectedIntent: string | null }> {
   const res = await fetch(`${API_URL}/chat/stream`, {
     method: "POST",
     headers: {
@@ -137,6 +153,7 @@ export async function chatStream(
   }
 
   const returnedSessionId = res.headers.get("X-Session-Id") || "";
+  const detectedIntent = res.headers.get("X-Detected-Intent");
   const reader = res.body.getReader();
   const decoder = new TextDecoder("utf-8");
 
@@ -154,5 +171,6 @@ export async function chatStream(
   return {
     sessionId: returnedSessionId,
     finalText,
+    detectedIntent,
   };
 }

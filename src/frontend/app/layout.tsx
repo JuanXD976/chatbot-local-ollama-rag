@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Chatbot Local con Ollama - V2.0",
-  description: "Frontend Next.js para el chatbot local con FastAPI",
+  description: "Frontend premium con Next.js para el chatbot local con FastAPI",
 };
 
 export default function RootLayout({

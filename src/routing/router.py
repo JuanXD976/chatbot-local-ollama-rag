@@ -26,8 +26,31 @@ from src.tools.tools import (
     search_web,
 )
 
+from src.memory.memory_service import answer_memory_question
+
 logger = logging.getLogger(__name__)
 
+def is_memory_question(prompt: str) -> bool:
+    prompt_lower = prompt.lower()
+
+    memory_questions = [
+        "cómo me llamo",
+        "como me llamo",
+        "cuál es mi nombre",
+        "cual es mi nombre",
+        "dónde trabajo",
+        "donde trabajo",
+        "en qué trabajo",
+        "en que trabajo",
+        "qué me gusta",
+        "que me gusta",
+        "dónde vivo",
+        "donde vivo",
+        "qué estudio",
+        "que estudio",
+    ]
+
+    return any(q in prompt_lower for q in memory_questions)
 
 def detect_intent(prompt: str) -> str:
     """
@@ -164,6 +187,14 @@ def execute_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
     """
     Procesa el mensaje del usuario y devuelve una respuesta estructurada.
     """
+    memory_answer = answer_memory_question(prompt)
+    if memory_answer is not None:
+        return {
+            "answer": memory_answer,
+            "detected_intent": "memory",
+            "tools_used": ["memory"],
+            "sources": ["persistent_memory"],
+        }
     intent = detect_intent(prompt)
 
     logger.info("Intent detectada: %s", intent)
@@ -260,6 +291,15 @@ def stream_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
     Variante streaming. Devuelve un generador en los casos soportados.
     Para tool outputs estructurados o respuestas no streamables, devuelve texto completo.
     """
+    memory_answer = answer_memory_question(prompt)
+    if memory_answer is not None:
+        return {
+            "answer": memory_answer,
+            "detected_intent": "memory",
+            "tools_used": ["memory"],
+            "sources": ["persistent_memory"],
+        }
+        
     intent = detect_intent(prompt)
 
     logger.info("Intent detectada (stream): %s", intent)
@@ -347,3 +387,4 @@ def process_user_message(prompt: str, messages: list[dict[str, str]]) -> str:
     """
     result = execute_user_message(prompt, messages)
     return result["answer"]
+

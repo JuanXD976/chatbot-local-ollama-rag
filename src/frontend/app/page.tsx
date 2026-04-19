@@ -17,9 +17,13 @@ import {
   type SessionSummary,
 } from "../lib/api";
 
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
+  timestamp?: string;
 };
 
 export default function HomePage() {
@@ -36,6 +40,7 @@ export default function HomePage() {
 
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const shouldAutoScrollRef = useRef(true);
 
   async function refreshHealth() {
     const data = await healthCheck();
@@ -65,9 +70,16 @@ export default function HomePage() {
       session.messages.map((m) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
+        timestamp: m.timestamp,
       }))
     );
     setInfoMessage("");
+
+    requestAnimationFrame(() => {
+      if (chatScrollRef.current) {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+      }
+    });
   }
 
   async function handleNewSession() {
@@ -102,29 +114,33 @@ export default function HomePage() {
     if (!selectedFile) return;
 
     try {
-      await uploadDocument(selectedFile);
-      setInfoMessage("Documento subido correctamente.");
+      const result = await uploadDocument(selectedFile);
+      setInfoMessage(
+        `Documento subido e indexado correctamente. Chunks añadidos: ${result.indexed_chunks}`
+      );
       setSelectedFile(null);
       await refreshDocuments();
     } catch (error: any) {
-      setInfoMessage(error.message || "No se pudo subir el documento.");
+      setInfoMessage(error.message || "No se pudo subir e indexar el documento.");
     }
   }
 
   async function handleRebuild() {
     try {
       const result = await rebuildDocuments();
-      setInfoMessage(`Base vectorial reconstruida. Chunks indexados: ${result.total_chunks}`);
+      setInfoMessage(`Reindexación completa realizada. Chunks indexados: ${result.total_chunks}`);
       await refreshDocuments();
     } catch (error: any) {
-      setInfoMessage(error.message || "No se pudo reconstruir la base vectorial.");
+      setInfoMessage(error.message || "No se pudo reindexar la base vectorial.");
     }
   }
 
   async function handleDeleteDocument(filename: string) {
     try {
-      await deleteDocument(filename);
-      setInfoMessage(`Documento eliminado: ${filename}`);
+      const result = await deleteDocument(filename);
+      setInfoMessage(
+        `Documento eliminado correctamente. Chunks borrados del índice: ${result.deleted_chunks ?? 0}`
+      );
       await refreshDocuments();
     } catch (error: any) {
       setInfoMessage(error.message || "No se pudo eliminar el documento.");
@@ -151,11 +167,12 @@ export default function HomePage() {
     setInput("");
     setPending(true);
     setInfoMessage("");
+    shouldAutoScrollRef.current = true;
 
     setMessages((prev) => [
       ...prev,
-      { role: "user", content: userMessage },
-      { role: "assistant", content: "" },
+      { role: "user", content: userMessage, timestamp: new Date().toISOString() },
+      { role: "assistant", content: "", timestamp: new Date().toISOString() },
     ]);
 
     try {
@@ -183,6 +200,7 @@ export default function HomePage() {
         next[lastIndex] = {
           role: "assistant",
           content: error.message || "Error al generar la respuesta.",
+          timestamp: new Date().toISOString(),
         };
         return next;
       });
@@ -205,13 +223,23 @@ export default function HomePage() {
     el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
   }
 
+  function handleChatScroll() {
+    const el = chatScrollRef.current;
+    if (!el) return;
+
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    shouldAutoScrollRef.current = distanceFromBottom < 120;
+  }
+
   useEffect(() => {
     autoResizeTextarea();
   }, [input]);
 
   useEffect(() => {
     if (!chatScrollRef.current) return;
-    chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    if (shouldAutoScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
   }, [messages, pending]);
 
   useEffect(() => {
@@ -244,14 +272,12 @@ export default function HomePage() {
                   key={session.session_id}
                   className={`session-item ${activeSessionId === session.session_id ? "session-active" : ""}`}
                 >
-                  <div className="session-top">
-                    <button
-                      className="session-title-btn"
-                      onClick={() => loadSession(session.session_id)}
-                    >
-                      <div className="session-title-text">{session.title}</div>
-                    </button>
-                  </div>
+                  <button
+                    className="session-title-btn"
+                    onClick={() => loadSession(session.session_id)}
+                  >
+                    <div className="session-title-text">{session.title}</div>
+                  </button>
 
                   <div style={{ marginTop: 8 }}>
                     <button
@@ -282,38 +308,43 @@ export default function HomePage() {
                 Documentos cargados: {docStatus?.document_count ?? 0}
               </div>
               <div className="small-muted">
+                Chunks indexados: {docStatus?.indexed_chunks ?? 0}
+              </div>
+              <div className="small-muted">
                 Base vectorial: {docStatus?.vectorstore_exists ? "Disponible" : "Pendiente"}
               </div>
             </div>
 
             <div className="divider" />
 
+            <div className="file-upload-shell">
+              <input
+                id="rag-file-input"
+                className="file-input-hidden"
+                type="file"
+                accept=".txt,.md,.pdf,.docx"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+              />
+
+              <label htmlFor="rag-file-input" className="file-upload-btn">
+                Seleccionar archivo
+              </label>
+
+              <div className={`file-selected-name ${selectedFile ? "file-selected-active" : ""}`}>
+                {selectedFile ? selectedFile.name : "Ningún archivo seleccionado"}
+              </div>
+            </div>
+
+            <div className="divider" />
+
             <div className="stack">
-              <div className="file-upload-shell">
-                  <input
-                    id="rag-file-input"
-                    className="file-input-hidden"
-                    type="file"
-                    accept=".txt,.md,.pdf,.docx"
-                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                  />
+              <button className="btn" onClick={handleUpload} disabled={!selectedFile}>
+                Subir e indexar documento
+              </button>
 
-                  <label htmlFor="rag-file-input" className="file-upload-btn">
-                    Seleccionar archivo
-                  </label>
-
-                  <div className={`file-selected-name ${selectedFile ? "file-selected-active" : ""}`}>
-                    {selectedFile ? selectedFile.name : "Ningún archivo seleccionado"}
-                  </div>
-                </div>
-
-                <button className="btn" onClick={handleUpload} disabled={!selectedFile}>
-                  Guardar documento
-                </button>
-
-                <button className="btn" onClick={handleRebuild}>
-                  Reconstruir base vectorial
-                </button>
+              <button className="btn" onClick={handleRebuild}>
+                Reindexar todo
+              </button>
             </div>
 
             <div className="divider" />
@@ -346,7 +377,7 @@ export default function HomePage() {
           <div className="hero-card">
             <h1 className="page-title">🤖 Chatbot Local con Ollama - V2.0</h1>
             <p className="page-subtitle">
-              Frontend Next.js + backend FastAPI reutilizando tu core actual de IA.
+              Frontend premium con Next.js + backend FastAPI reutilizando tu core actual de IA.
             </p>
             <p className="small-muted" style={{ marginTop: 10 }}>
               Modelo local actual: {health?.model ?? "desconocido"}
@@ -359,7 +390,7 @@ export default function HomePage() {
         </div>
 
         <div className="main-body">
-          <div className="chat-scroll" ref={chatScrollRef}>
+          <div className="chat-scroll" ref={chatScrollRef} onScroll={handleChatScroll}>
             {infoMessage && <div className="info-banner">{infoMessage}</div>}
 
             <div className="chat-window">
@@ -377,17 +408,24 @@ export default function HomePage() {
                   }`}
                 >
                   <div
-                    className={`message ${
-                      message.role === "user" ? "message-user" : "message-assistant"
-                    }`}
-                  >
-                    {message.content ||
-                      (pending && index === messages.length - 1 ? (
+                      className={`message ${
+                        message.role === "user" ? "message-user" : "message-assistant"
+                      }`}
+                    >
+                      {message.content ? (
+                        message.role === "assistant" ? (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {message.content}
+                          </ReactMarkdown>
+                        ) : (
+                          message.content
+                        )
+                      ) : pending && index === messages.length - 1 ? (
                         <span className="assistant-thinking">Pensando...</span>
                       ) : (
                         ""
-                      ))}
-                  </div>
+                      )}
+                    </div>
                 </div>
               ))}
             </div>

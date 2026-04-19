@@ -78,3 +78,55 @@ def reset_persistent_memory() -> None:
     Borra toda la memoria persistente.
     """
     clear_memory(MEMORY_FILE_PATH)
+
+def find_memory_fact_by_prefix(prefix: str) -> str | None:
+    """
+    Busca en la memoria persistente una entrada que empiece por un prefijo concreto.
+    """
+    memory = get_persistent_memory()
+
+    for item in reversed(memory):
+        content = item.get("content", "").strip()
+        if content.lower().startswith(prefix.lower()):
+            return content
+
+    return None
+
+
+def answer_memory_question(user_prompt: str) -> str | None:
+    """
+    Responde de forma determinista a preguntas simples sobre memoria.
+    """
+    prompt = user_prompt.strip().lower()
+
+    if any(q in prompt for q in ["cómo me llamo", "como me llamo", "cuál es mi nombre", "cual es mi nombre"]):
+        fact = find_memory_fact_by_prefix("Mi nombre es")
+        if fact:
+            return fact
+        return "No tengo guardado tu nombre todavía."
+
+    if any(q in prompt for q in ["dónde trabajo", "donde trabajo", "en qué trabajo", "en que trabajo"]):
+        fact = find_memory_fact_by_prefix("Trabajo en")
+        if fact:
+            return fact
+        return "No tengo guardado dónde trabajas."
+
+    if any(q in prompt for q in ["qué me gusta", "que me gusta", "cuáles son mis gustos", "cuales son mis gustos"]):
+        fact = find_memory_fact_by_prefix("Me gusta")
+        if fact:
+            return fact
+        return "No tengo guardado qué te gusta."
+
+    if any(q in prompt for q in ["dónde vivo", "donde vivo"]):
+        fact = find_memory_fact_by_prefix("Vivo en")
+        if fact:
+            return fact
+        return "No tengo guardado dónde vives."
+
+    if any(q in prompt for q in ["qué estudio", "que estudio"]):
+        fact = find_memory_fact_by_prefix("Estudio")
+        if fact:
+            return fact
+        return "No tengo guardado qué estudias."
+
+    return None

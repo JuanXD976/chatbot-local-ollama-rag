@@ -31,9 +31,18 @@ STREAM_EXACT_TOKENS = [
     "<eos>",
     "<im_start>",
     "<im_end>",
+    "<|im_start|>",
+    "<|im_end|>",
+    "<|start_header_id|>",
+    "<|end_header_id|>",
+    "<|eot_id|>",
     "system>",
     "assistant>",
     "user>",
+    "chatbot>",
+    "system_user",
+    "assistant_user",
+    "systeme_user",
 ]
 
 
@@ -64,26 +73,22 @@ def clean_response(text: Optional[str]) -> str:
     if not isinstance(text, str):
         text = str(text)
 
-    # Limpieza directa por reemplazo
     for token in STREAM_EXACT_TOKENS:
         text = text.replace(token, "")
 
-    # Tokens estilo <|...|>
     text = re.sub(r"<\|[^>]+\|>", "", text)
+    text = re.sub(r"<[a-zA-Z0-9_\-/| ]+>", "", text)
 
-    # Tokens estilo <im_start>, <im_end>, <algo>
-    text = re.sub(r"<[a-zA-Z0-9_\-/]+>", "", text)
+    # restos tipo im_start, im_end, im_tant, im_show user context...
+    text = re.sub(r"\bim_[a-zA-Z_ ]+\b", "", text, flags=re.IGNORECASE)
 
-    # Casos tipo "assistant:", "user:", "system:"
-    text = re.sub(r"\b(system|assistant|user)\s*:", "", text, flags=re.IGNORECASE)
+    # restos de cabeceras de rol
+    text = re.sub(r"\b(system|assistant|user|chatbot)\s*:", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(system|assistant|user|chatbot)\s*>", "", text, flags=re.IGNORECASE)
 
-    # Casos tipo "assistant>" "user>" "system>"
-    text = re.sub(r"\b(system|assistant|user)\s*>", "", text, flags=re.IGNORECASE)
+    # líneas enteras que empiecen por residuos técnicos
+    text = re.sub(r"(?mi)^\s*(system_user|assistant_user|systeme_user)\s*$", "", text)
 
-    # Eliminar restos de etiquetas tipo chatml concatenadas
-    text = re.sub(r"\b(im_start|im_end)\b", "", text, flags=re.IGNORECASE)
-
-    # Normalización de saltos y espacios
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"\n{3,}", "\n\n", text)
     text = re.sub(r"[ \t]{2,}", " ", text)
@@ -105,13 +110,13 @@ def clean_stream_chunk(text: Optional[str]) -> str:
         text = text.replace(token, "")
 
     text = re.sub(r"<\|[^>]+\|>", "", text)
-    text = re.sub(r"<[a-zA-Z0-9_\-/]+>", "", text)
-    text = re.sub(r"\b(system|assistant|user)\s*:", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"\b(system|assistant|user)\s*>", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"\b(im_start|im_end)\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[a-zA-Z0-9_\-/| ]+>", "", text)
+    text = re.sub(r"\bim_[a-zA-Z_ ]+\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(system|assistant|user|chatbot)\s*:", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(system|assistant|user|chatbot)\s*>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(system_user|assistant_user|systeme_user)\b", "", text, flags=re.IGNORECASE)
 
     text = text.replace("\r\n", "\n").replace("\r", "\n")
-
     return text
 
 
@@ -129,9 +134,23 @@ def _build_payload(
         "stream": stream,
         "options": {
             "num_predict": max_tokens,
-            "temperature": 0.7,
+            "temperature": 0.4,
             "top_p": 0.9,
-            "repeat_penalty": 1.1,
+            "repeat_penalty": 1.15,
+            "stop": [
+                "<|im_start|>",
+                "<|im_end|>",
+                "<|start_header_id|>",
+                "<|end_header_id|>",
+                "<|eot_id|>",
+                "assistant>",
+                "user>",
+                "system>",
+                "chatbot>",
+                "system_user",
+                "assistant_user",
+                "systeme_user",
+            ],
         },
     }
 

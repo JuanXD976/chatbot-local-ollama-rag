@@ -1,11 +1,10 @@
 """
 Ingesta de documentos para el sistema RAG.
 
-Motivo de su creación:
-- Leer documentos locales.
-- Dividirlos en fragmentos.
-- Vectorizarlos.
-- Almacenarlos en Chroma.
+Motivo:
+- Cargar documentos soportados.
+- Trocearlos.
+- Insertarlos o reindexarlos en ChromaDB.
 """
 
 from __future__ import annotations
@@ -16,7 +15,6 @@ from langchain_core.documents import Document
 from langchain_community.document_loaders import (
     Docx2txtLoader,
     PyPDFLoader,
-    TextLoader,
 )
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -26,24 +24,55 @@ from src.config.settings import (
     RAG_RAW_DATA_PATH,
     RAG_SUPPORTED_EXTENSIONS,
 )
-from src.rag.vectorstore import get_vectorstore
+from src.rag.vectorstore import (
+    add_documents_to_vectorstore,
+    clear_vectorstore,
+    delete_documents_by_source_name,
+)
+
+
+def _load_text_file_with_fallback(file_path: Path) -> list[Document]:
+    encodings = ["utf-8", "utf-8-sig", "cp1252", "latin-1"]
+
+    content = None
+    last_error = None
+
+    for encoding in encodings:
+        try:
+            content = file_path.read_text(encoding=encoding)
+            break
+        except Exception as exc:
+            last_error = exc
+
+    if content is None:
+        raise RuntimeError(f"No se pudo leer el archivo de texto {file_path}: {last_error}")
+
+    return [
+        Document(
+            page_content=content,
+            metadata={
+                "source": str(file_path),
+                "source_name": file_path.name,
+                "source_extension": file_path.suffix.lower(),
+                "page_or_chunk": 1,
+            },
+        )
+    ]
+
 
 def _load_single_file(file_path: Path) -> list[Document]:
-    """
-    Carga un archivo individual según su extensión.
-    """
     suffix = file_path.suffix.lower()
 
     if suffix in {".txt", ".md"}:
-        loader = TextLoader(str(file_path), encoding="utf-8")
+        docs = _load_text_file_with_fallback(file_path)
     elif suffix == ".pdf":
         loader = PyPDFLoader(str(file_path))
+        docs = loader.load()
     elif suffix == ".docx":
         loader = Docx2txtLoader(str(file_path))
+        docs = loader.load()
     else:
         raise ValueError(f"Extensión no soportada: {suffix}")
-
-    docs = loader.load()
 
     for index, doc in enumerate(docs, start=1):
         doc.metadata["source"] = str(file_path)
@@ -55,9 +84,6 @@ def _load_single_file(file_path: Path) -> list[Document]:
 
 
 def load_documents_from_directory(directory: str) -> list[Document]:
-    """
-    Carga todos los documentos soportados desde un directorio.
-    """
     documents: list[Document] = []
     base_path = Path(directory)
 
@@ -79,27 +105,56 @@ def load_documents_from_directory(directory: str) -> list[Document]:
 
 
 def split_documents(documents: list[Document]) -> list[Document]:
-    """
-    Divide los documentos en chunks.
-    """
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=RAG_CHUNK_SIZE,
         chunk_overlap=RAG_CHUNK_OVERLAP,
     )
-    return splitter.split_documents(documents)
+
+    split_docs = splitter.split_documents(documents)
+
+    per_source_counter: dict[str, int] = {}
+
+    for doc in split_docs:
+        source_name = doc.metadata.get("source_name", "unknown")
+        current = per_source_counter.get(source_name, 0)
+        doc.metadata["chunk_index"] = current
+        per_source_counter[source_name] = current + 1
+
+    return split_docs
 
 
 def ingest_documents() -> int:
     """
-    Ejecuta el proceso completo de ingesta y devuelve el número de chunks indexados.
+    Reindexa todo el directorio raw completo.
     """
     raw_documents = load_documents_from_directory(RAG_RAW_DATA_PATH)
     split_docs = split_documents(raw_documents)
 
-    vectorstore = get_vectorstore()
-    vectorstore.add_documents(split_docs)
+    clear_vectorstore()
+    return add_documents_to_vectorstore(split_docs)
 
-    return len(split_docs)
+
+def ingest_single_file(file_path: str | Path) -> int:
+    """
+    Indexa o reindexa un único documento.
+    """
+    path = Path(file_path)
+
+    if not path.exists():
+        raise FileNotFoundError(f"No existe el archivo: {path}")
+
+    documents = _load_single_file(path)
+    split_docs = split_documents(documents)
+
+    delete_documents_by_source_name(path.name)
+    return add_documents_to_vectorstore(split_docs)
+
+
+def remove_file_from_index(filename: str) -> int:
+    """
+    Elimina del índice todos los chunks asociados al archivo.
+    """
+    return delete_documents_by_source_name(filename)
 
 
 if __name__ == "__main__":

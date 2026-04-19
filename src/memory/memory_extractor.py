@@ -1,9 +1,9 @@
 """
-Extracción simple de memoria útil del usuario.
+Extracción segura de memoria útil del usuario.
 
 Motivo:
-- Guardar solo hechos relevantes.
-- Evitar contaminar la memoria con prompts temporales.
+- Guardar solo hechos explícitos.
+- Evitar inferencias agresivas o inventadas.
 """
 
 from __future__ import annotations
@@ -18,10 +18,6 @@ def _clean_value(value: str) -> str:
 
 
 def extract_memory_fact(user_prompt: str) -> str | None:
-    """
-    Extrae un hecho útil si el mensaje parece memoria persistente.
-    Devuelve una frase limpia o None.
-    """
     text = user_prompt.strip()
 
     if not text:
@@ -37,16 +33,12 @@ def extract_memory_fact(user_prompt: str) -> str | None:
             lambda v: f"Trabajo en {_clean_value(v)}."
         ),
         (
-            r"\bmi empresa es\s+(.+)$",
-            lambda v: f"Mi empresa es {_clean_value(v)}."
+            r"\bestudio\s+(.+)$",
+            lambda v: f"Estudio {_clean_value(v)}."
         ),
         (
             r"\bvivo en\s+(.+)$",
             lambda v: f"Vivo en {_clean_value(v)}."
-        ),
-        (
-            r"\bestudio\s+(.+)$",
-            lambda v: f"Estudio {_clean_value(v)}."
         ),
         (
             r"\bme gusta\s+(.+)$",
@@ -66,14 +58,11 @@ def extract_memory_fact(user_prompt: str) -> str | None:
         ),
     ]
 
-    prompt_lower = text.lower()
-
     for pattern, builder in patterns:
-        match = re.search(pattern, prompt_lower, re.IGNORECASE)
+        match = re.search(pattern, text, re.IGNORECASE)
         if match:
-            raw_value = text[match.start(1):match.end(1)]
-            cleaned = _clean_value(raw_value)
-            if cleaned:
+            cleaned = _clean_value(match.group(1))
+            if cleaned and len(cleaned) <= 180:
                 return builder(cleaned)
 
     return None

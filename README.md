@@ -1,30 +1,70 @@
 # 🤖 Chatbot Local con Ollama — V2.0
 
-Versión 2.0 del proyecto, migrada a una arquitectura desacoplada con **FastAPI** como backend y **Next.js** como frontend, reutilizando el core modular de IA desarrollado en versiones anteriores.
+Versión 2.0 final del proyecto, migrada a una arquitectura desacoplada con **FastAPI** como backend y **Next.js** como frontend, reutilizando el core modular de IA desarrollado en versiones anteriores.
 
-El objetivo de esta versión es transformar el chatbot local en una aplicación más cercana a un entorno real de producto, separando claramente la capa de interfaz de usuario de la lógica de negocio, RAG, memoria, tools y sesiones.
-
----
-
-# 🚀 Novedades principales de la V2.0
-
-- Migración desde interfaz monolítica en Streamlit a arquitectura **frontend + backend**.
-- Backend con **FastAPI**.
-- Frontend con **Next.js + React + TypeScript**.
-- Reutilización del core existente:
-  - LLM local con Ollama
-  - router de intenciones
-  - tools
-  - RAG
-  - memoria persistente
-  - sesiones
-- Soporte para streaming de respuestas desde backend.
-- Gestión documental del RAG desde interfaz web.
-- Base preparada para seguir evolucionando hacia una arquitectura de producto más profesional.
+Esta versión cierra la etapa de transición desde una app monolítica en Streamlit hacia una aplicación web real con separación entre interfaz, lógica de negocio, memoria, sesiones, tools y sistema RAG.
 
 ---
 
-# 🏗 Arquitectura
+# 🚀 Qué incluye la V2.0
+
+## Arquitectura desacoplada
+- Backend con **FastAPI**
+- Frontend con **Next.js + React + TypeScript**
+- Comunicación entre frontend y backend mediante API HTTP
+
+## Core IA reutilizado
+- LLM local con **Ollama**
+- Router de intenciones
+- Tools externas
+- RAG con **ChromaDB**
+- Memoria persistente
+- Gestión de sesiones
+
+## Chat
+- Chat conversacional desde web
+- Streaming de respuestas
+- Entrada de texto persistente
+- Historial por sesión
+
+## Sesiones
+- Crear sesiones nuevas
+- Cargar sesiones previas
+- Eliminar sesiones
+- Persistencia de conversaciones
+
+## Memoria persistente
+- Guardado de hechos explícitos del usuario
+- Recuperación determinista para preguntas simples como:
+  - nombre
+  - trabajo
+  - gustos
+  - estudios
+- Menor riesgo de respuestas inventadas en consultas de memoria
+
+## RAG documental
+- Gestión de documentos desde la interfaz web
+- Soporte para:
+  - `.txt`
+  - `.md`
+  - `.pdf`
+  - `.docx`
+- Subida e indexación automática de nuevos documentos
+- Eliminación de documentos y embeddings asociados
+- Reindexado global del corpus
+- Estado visible de:
+  - documentos cargados
+  - chunks indexados
+  - disponibilidad de base vectorial
+
+## Limpieza de respuestas
+- Eliminación de tokens internos del modelo
+- Mejor control de residuos de plantillas tipo chat template
+- Respuestas más limpias para UI web
+
+---
+
+# 🏗 Arquitectura general
 
 ```text
 Usuario
@@ -53,7 +93,7 @@ V1/
 │   ├── raw/
 │   └── vectorstore/
 ├── legacy/
-│   └── streamlit/
+│   └── streamlit_app.py
 ├── src/
 │   ├── api/
 │   ├── app/
@@ -94,20 +134,20 @@ La carpeta src/api/ contiene la capa API del proyecto.
 
 Swagger disponible en:
 ```text
-http://127.0.0.1:8000/docs
+http://localhost:8000/docs
 ```
 
 # 🖥 Frontend (Next.js)
 
 La carpeta src/frontend/ contiene el frontend del proyecto.
 
-- Funcionalidades actuales de interfaz
+Funcionalidades actuales de interfaz:
 - Sidebar de sesiones
-- Gestión de memoria persistente
+- Gestión de memoria
 - Gestión documental RAG
 - Chat con streaming
-- Consumo de backend vía API
-- Base de diseño ya desacoplada del core Python
+- Estado de conexión del backend
+- Render de respuestas enriquecidas con markdown
 
 # 🧠 Core IA reutilizado
 
@@ -115,10 +155,10 @@ La lógica de inteligencia artificial sigue residiendo en src/:
 
 - src/llm/ → cliente Ollama
 - src/routing/ → router de intenciones
-- src/rag/ → pipeline RAG
-- src/memory/ → memoria persistente
+- src/rag/ → pipeline RAG, ingestion, retrieval y vectorstore
+- src/memory/ → memoria persistente y extracción de hechos
 - src/tools/ → tools externas
-- src/app/ → servicios de aplicación, sesiones, documentos, orquestación
+- src/app/ → servicios de aplicación, sesiones y documentos
 ---
 
 ---
@@ -138,6 +178,18 @@ Formatos recomendados:
 - `.md`
 - `.pdf`
 - `.docx`
+
+## Flujo documental actual
+### Subir e indexar documento
+- guarda el archivo
+- lo indexa automáticamente
+### Eliminar documento
+- elimina el archivo físico
+- elimina sus embeddings asociados
+### Reindexar todo
+- reindexa todos los documentos disponibles en data/raw
+- pensado como acción de mantenimiento o reconstrucción global
+
 ---
 
 ## Construcción de embeddings
@@ -186,14 +238,15 @@ npm run dev
 Crear archivo `.env`:
 
 ```env
-TAVILY_API_KEY=TU_API_KEY
-OLLAMA_MAX_TOKENS=1200
+OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_CHAT_MODEL=gemma3:4
+OLLAMA_MAX_TOKENS=1200
 LOG_LEVEL=INFO
+TAVILY_API_KEY=TU_API_KEY
 ```
 ## Frontend (src/frontend/.env.local)
 ```env
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 ---
 
@@ -247,12 +300,14 @@ Mi nombre es Juan
 
 Próximas mejoras previstas:
 
-- [ ] pulido visual del frontend
-- [ ] limpieza completa de tokens residuales del modelo
-- [ ] mejora del comportamiento del RAG
-- [ ] componentes React separados
-- [ ] mejora del sidebar y experiencia de usuario
-- [ ] futura preparación para despliegue
+- [ ] rediseño visual más avanzado
+- [ ] interfaz clara/blanca o temas seleccionables
+- [ ] menú de administración tipo ⋯
+- [ ] memoria y RAG fuera del sidebar principal
+- [ ] configuración visual por usuario
+- [ ] mejor gestión del markdown y del diseño del chat
+- [ ] componentes React desacoplados
+- [ ] mejoras de UX generales
 
 ---
 
