@@ -1,66 +1,58 @@
-# 🤖 Chatbot Local con Ollama — V2.0
+# 🤖 Chatbot Local con Ollama — V3.0
 
-Versión 2.0 final del proyecto, migrada a una arquitectura desacoplada con **FastAPI** como backend y **Next.js** como frontend, reutilizando el core modular de IA desarrollado en versiones anteriores.
+Versión V3.0 del proyecto **Chatbot Local con Ollama**, evolucionado hacia una aplicación web con arquitectura desacoplada, experiencia de usuario mejorada y panel de administración integrado.
 
-Esta versión cierra la etapa de transición desde una app monolítica en Streamlit hacia una aplicación web real con separación entre interfaz, lógica de negocio, memoria, sesiones, tools y sistema RAG.
+Esta versión consolida la migración desde una app experimental en Streamlit hacia una solución más seria basada en **FastAPI + Next.js**, manteniendo el core modular de IA, RAG, memoria persistente, sesiones y tools.
 
 ---
 
-# 🚀 Qué incluye la V2.0
+# 🚀 Qué incluye la V3.0
 
-## Arquitectura desacoplada
-- Backend con **FastAPI**
-- Frontend con **Next.js + React + TypeScript**
-- Comunicación entre frontend y backend mediante API HTTP
+## Frontend mejorado
+- Interfaz web con **Next.js + React + TypeScript**
+- Tema visual claro / oscuro / automático
+- Mensajes del usuario alineados a la derecha
+- Mensajes del asistente alineados a la izquierda
+- Markdown renderizado en respuestas del asistente
+- Menús contextuales `⋯` para sesiones y documentos
+- Panel lateral de administración con:
+  - memoria persistente
+  - base documental RAG
+  - estado del sistema
+  - selector de tema
 
-## Core IA reutilizado
-- LLM local con **Ollama**
-- Router de intenciones
-- Tools externas
-- RAG con **ChromaDB**
-- Memoria persistente
-- Gestión de sesiones
+## Backend consolidado
+- API REST con **FastAPI**
+- Endpoint de streaming para respuestas progresivas
+- Gestión de sesiones conversacionales
+- Memoria persistente del usuario
+- Integración con Ollama
+- Sistema RAG con indexación documental automática
 
-## Chat
-- Chat conversacional desde web
-- Streaming de respuestas
-- Entrada de texto persistente
-- Historial por sesión
-
-## Sesiones
-- Crear sesiones nuevas
-- Cargar sesiones previas
-- Eliminar sesiones
-- Persistencia de conversaciones
-
-## Memoria persistente
-- Guardado de hechos explícitos del usuario
-- Recuperación determinista para preguntas simples como:
-  - nombre
-  - trabajo
-  - gustos
-  - estudios
-- Menor riesgo de respuestas inventadas en consultas de memoria
-
-## RAG documental
-- Gestión de documentos desde la interfaz web
+## Gestión documental RAG
+- Subida de múltiples archivos a la vez
+- Indexación automática al subir documentos
+- Eliminación de documentos y embeddings asociados
+- Reindexado global del corpus como tarea de mantenimiento
 - Soporte para:
   - `.txt`
   - `.md`
   - `.pdf`
   - `.docx`
-- Subida e indexación automática de nuevos documentos
-- Eliminación de documentos y embeddings asociados
-- Reindexado global del corpus
-- Estado visible de:
-  - documentos cargados
-  - chunks indexados
-  - disponibilidad de base vectorial
+
+## Memoria persistente
+- Guarda hechos explícitos del usuario
+- Respuesta determinista para preguntas simples:
+  - nombre
+  - trabajo
+  - gustos
+  - lugar de residencia
+  - estudios
 
 ## Limpieza de respuestas
-- Eliminación de tokens internos del modelo
-- Mejor control de residuos de plantillas tipo chat template
-- Respuestas más limpias para UI web
+- Eliminación de residuos de plantillas del modelo
+- Reducción de tokens extraños en salida
+- Mejor control del streaming y de los stop tokens
 
 ---
 
@@ -77,9 +69,9 @@ Core IA reutilizado
    ├── LLM local con Ollama
    ├── Router de intenciones
    ├── Tools
-   ├── RAG con ChromaDB
    ├── Memoria persistente
-   └── Sesiones
+   ├── Sesiones
+   └── RAG con ChromaDB
 ```
 ---
 ---
@@ -92,14 +84,18 @@ V1/
 │   ├── memory/
 │   ├── raw/
 │   └── vectorstore/
-├── legacy/
-│   └── streamlit_app.py
+├── docs/
+├── legacy_streamlit/
+│   └── app_streamlit_v1.py
 ├── src/
 │   ├── api/
 │   ├── app/
 │   ├── config/
 │   ├── core/
 │   ├── frontend/
+│   │   ├── app/
+│   │   ├── components/
+│   │   └── lib/
 │   ├── llm/
 │   ├── memory/
 │   ├── rag/
@@ -118,7 +114,7 @@ V1/
 
 La carpeta src/api/ contiene la capa API del proyecto.
 
-- Endpoints principales
+## Endpoints principales
 - GET /health
 - POST /chat
 - POST /chat/stream
@@ -142,23 +138,26 @@ http://localhost:8000/docs
 La carpeta src/frontend/ contiene el frontend del proyecto.
 
 Funcionalidades actuales de interfaz:
-- Sidebar de sesiones
-- Gestión de memoria
-- Gestión documental RAG
+- Sidebar centrado en sesiones
+- Panel ⋯ de administración
+- Tema claro / oscuro / auto
 - Chat con streaming
-- Estado de conexión del backend
-- Render de respuestas enriquecidas con markdown
+- Renderizado markdown
+- Gestión documental integrada
+- Menús contextuales para eliminar sesiones y documentos
 
-# 🧠 Core IA reutilizado
+# 🧠 Core IA
 
 La lógica de inteligencia artificial sigue residiendo en src/:
 
 - src/llm/ → cliente Ollama
 - src/routing/ → router de intenciones
-- src/rag/ → pipeline RAG, ingestion, retrieval y vectorstore
+- src/rag/ → ingestion, retrieval, vectorstore y pipeline RAG
 - src/memory/ → memoria persistente y extracción de hechos
-- src/tools/ → tools externas
-- src/app/ → servicios de aplicación, sesiones y documentos
+- src/tools/ → weather, datetime, cálculo, búsqueda web
+- src/app/ → servicios de chat, sesiones y documentos
+- src/api/ → endpoints FastAPI
+- src/frontend/ → interfaz Next.js
 ---
 
 ---
@@ -180,16 +179,17 @@ Formatos recomendados:
 - `.docx`
 
 ## Flujo documental actual
-### Subir e indexar documento
-- guarda el archivo
-- lo indexa automáticamente
+### Subida documental
+- permite subir varios archivos a la vez
+- guarda cada archivo
+- indexa automáticamente cada documento
 ### Eliminar documento
 - elimina el archivo físico
 - elimina sus embeddings asociados
 ### Reindexar todo
-- reindexa todos los documentos disponibles en data/raw
-- pensado como acción de mantenimiento o reconstrucción global
-
+- reprocesa todos los documentos presentes en data/raw
+- pensado como operación de mantenimiento
+---
 ---
 
 ## Construcción de embeddings
@@ -229,8 +229,8 @@ npm run dev
 ```
 ## URLs
 - Frontend: http://localhost:3000
-- Backend: http://127.0.0.1:8000
-- Swagger: http://127.0.0.1:8000/docs
+- Backend: http://localhost:8000
+- Swagger: http://localhost:8000/docs
 ---
 
 # 🔑 Variables de entorno necesarias
@@ -300,14 +300,12 @@ Mi nombre es Juan
 
 Próximas mejoras previstas:
 
-- [ ] rediseño visual más avanzado
-- [ ] interfaz clara/blanca o temas seleccionables
-- [ ] menú de administración tipo ⋯
-- [ ] memoria y RAG fuera del sidebar principal
-- [ ] configuración visual por usuario
-- [ ] mejor gestión del markdown y del diseño del chat
-- [ ] componentes React desacoplados
-- [ ] mejoras de UX generales
+- [ ] persistencia de preferencias de usuario
+- [ ] componentes React más desacoplados
+- [ ] drag & drop para documentos
+- [ ] mejor RAG con citas y fuentes visibles
+- [ ] mejoras de UX móvil
+- [ ] ajustes más avanzados de memoria y administración
 
 ---
 

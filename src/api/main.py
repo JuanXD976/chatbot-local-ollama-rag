@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import List
+
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -14,7 +16,6 @@ from src.api.schemas import (
     SessionDetail,
     SessionMessage,
     SessionSummary,
-    UploadResponse,
 )
 from src.app.document_service import DocumentService
 from src.config.settings import OLLAMA_CHAT_MODEL
@@ -23,7 +24,7 @@ from src.memory.memory_extractor import extract_memory_fact
 from src.memory.memory_service import append_message_to_memory, reset_persistent_memory
 from src.routing.router import detect_intent
 
-app = FastAPI(title="Chatbot Local API", version="2.0.0")
+app = FastAPI(title="Chatbot Local API", version="3.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,15 +70,15 @@ def chat(payload: ChatRequest) -> ChatResponse:
 
     session_id = chat_service.ensure_session(payload.session_id)
     messages_for_model = build_messages_for_model(
-        session_service=session_service,
-        session_id=session_id,
-        current_prompt=payload.message,
+      session_service=session_service,
+      session_id=session_id,
+      current_prompt=payload.message,
     )
 
     response = chat_service.process_message(
-        session_id=session_id,
-        user_message=payload.message,
-        messages_for_model=messages_for_model,
+      session_id=session_id,
+      user_message=payload.message,
+      messages_for_model=messages_for_model,
     )
 
     memory_fact = extract_memory_fact(payload.message)
@@ -210,15 +211,30 @@ def list_documents():
     }
 
 
-@app.post("/documents/upload", response_model=UploadResponse)
-async def upload_document(file: UploadFile = File(...)):
-    content = await file.read()
-    saved_path, indexed_chunks = DocumentService.save_file_bytes(file.filename, content)
-    return UploadResponse(
-        path=saved_path,
-        filename=file.filename,
-        indexed_chunks=indexed_chunks,
-    )
+@app.post("/documents/upload")
+async def upload_document(files: List[UploadFile] = File(...)):
+    results = []
+
+    for file in files:
+        try:
+            content = await file.read()
+            saved_path, indexed_chunks = DocumentService.save_file_bytes(file.filename, content)
+            results.append(
+                {
+                    "file": file.filename,
+                    "saved_path": saved_path,
+                    "indexed_chunks": indexed_chunks,
+                }
+            )
+        except Exception as exc:
+            results.append(
+                {
+                    "file": file.filename,
+                    "error": str(exc),
+                }
+            )
+
+    return {"results": results}
 
 
 @app.delete("/documents/{filename}")

@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export type SessionSummary = {
   session_id: string;
@@ -37,6 +37,17 @@ export type HealthData = {
   document_count: number;
   indexed_chunks: number;
   vectorstore_exists: boolean;
+};
+
+export type UploadBatchResult = {
+  file: string;
+  indexed_chunks?: number;
+  saved_path?: string;
+  error?: string;
+};
+
+export type UploadBatchResponse = {
+  results: UploadBatchResult[];
 };
 
 export async function healthCheck(): Promise<HealthData> {
@@ -81,9 +92,12 @@ export async function listDocuments() {
   return res.json();
 }
 
-export async function uploadDocument(file: File) {
+export async function uploadDocuments(files: File[]): Promise<UploadBatchResponse> {
   const formData = new FormData();
-  formData.append("file", file);
+
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
 
   const res = await fetch(`${API_URL}/documents/upload`, {
     method: "POST",
@@ -92,7 +106,7 @@ export async function uploadDocument(file: File) {
 
   if (!res.ok) {
     const error = await res.json();
-    throw new Error(error.detail || "No se pudo subir el documento.");
+    throw new Error(error.detail || "No se pudieron subir los documentos.");
   }
 
   return res.json();

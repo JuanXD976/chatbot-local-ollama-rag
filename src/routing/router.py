@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Generator
 
 from src.llm.ollama_client import (
     format_tool_result_with_llm,
@@ -18,6 +17,7 @@ from src.llm.ollama_client import (
     generate_response,
     generate_response_stream,
 )
+from src.memory.memory_service import answer_memory_question
 from src.rag.pipeline import answer_with_rag, answer_with_rag_stream
 from src.tools.tools import (
     calculate_expression,
@@ -26,9 +26,75 @@ from src.tools.tools import (
     search_web,
 )
 
-from src.memory.memory_service import answer_memory_question
-
 logger = logging.getLogger(__name__)
+
+
+def detect_intent(prompt: str) -> str:
+    """
+    Detecta la intención principal del mensaje del usuario.
+    """
+    prompt_lower = prompt.lower()
+
+    weather_keywords = ["tiempo", "clima", "temperatura", "lluvia", "sol", "viento"]
+    datetime_keywords = ["hora", "fecha", "qué día es", "que dia es", "qué hora es", "que hora es"]
+    web_keywords = [
+        "busca en internet",
+        "búscame",
+        "buscame",
+        "últimas noticias",
+        "ultimas noticias",
+        "qué ha pasado",
+        "que ha pasado",
+        "buscar en internet",
+        "en internet",
+    ]
+
+    rag_keywords = [
+        "según mis documentos",
+        "segun mis documentos",
+        "en mis documentos",
+        "mis documentos",
+        "mis archivos",
+        "mis pdf",
+        "mis pdfs",
+        "mis docx",
+        "mi documentación",
+        "mi documentacion",
+        "mi base de datos",
+        "mi base documental",
+        "mi base local",
+        "mi base de conocimiento",
+        "busca en mis documentos",
+        "busca en mis archivos",
+        "revisa mis documentos",
+        "revisa mis archivos",
+        "consulta mis documentos",
+        "consulta mis archivos",
+        "en la base local",
+        "en la base de conocimiento",
+        "archivos propios",
+        "nuestra bbdd",
+    ]
+
+    calc_keywords = ["calcula", "cuánto es", "cuanto es", "+", "-", "*", "/", "sqrt", "log"]
+
+    if any(keyword in prompt_lower for keyword in weather_keywords):
+        return "weather"
+
+    if any(keyword in prompt_lower for keyword in datetime_keywords):
+        return "datetime"
+
+    if any(keyword in prompt_lower for keyword in web_keywords):
+        return "web"
+
+    if any(keyword in prompt_lower for keyword in rag_keywords):
+        return "rag"
+
+    if any(keyword in prompt_lower for keyword in calc_keywords):
+        return "calculator"
+
+    return "chat"
+
 
 def is_memory_question(prompt: str) -> bool:
     prompt_lower = prompt.lower()
@@ -52,65 +118,8 @@ def is_memory_question(prompt: str) -> bool:
 
     return any(q in prompt_lower for q in memory_questions)
 
-def detect_intent(prompt: str) -> str:
-    """
-    Detecta la intención principal del mensaje del usuario.
-    """
-    prompt_lower = prompt.lower()
-
-    weather_keywords = ["tiempo", "clima", "temperatura", "lluvia", "sol", "viento"]
-    datetime_keywords = ["hora", "fecha", "qué día es", "que dia es", "qué hora es", "que hora es"]
-    web_keywords = [
-        "busca en internet",
-        "búscame",
-        "buscame",
-        "últimas noticias",
-        "ultimas noticias",
-        "qué ha pasado",
-        "que ha pasado",
-        "buscar en internet",
-        "en internet",
-    ]
-    rag_keywords = [
-        "según mis documentos",
-        "en mis documentos",
-        "en la base local",
-        "en la base de conocimiento",
-        "en mis apuntes",
-        "según la documentación",
-        "busca en local",
-        "busca en mis archivos",
-        "archivos propios",
-        "busca en nuestra base de datos",
-        "en mi base de datos",
-        "en mis pdfs",
-        "en mis docx",
-        "nuestra bbdd",
-    ]
-    calc_keywords = ["calcula", "cuánto es", "cuanto es", "+", "-", "*", "/", "sqrt", "log"]
-
-    if any(keyword in prompt_lower for keyword in weather_keywords):
-        return "weather"
-
-    if any(keyword in prompt_lower for keyword in datetime_keywords):
-        return "datetime"
-
-    if any(keyword in prompt_lower for keyword in web_keywords):
-        return "web"
-
-    if any(keyword in prompt_lower for keyword in rag_keywords):
-        return "rag"
-
-    if any(keyword in prompt_lower for keyword in calc_keywords):
-        return "calculator"
-
-    return "chat"
-
 
 def extract_city(prompt: str) -> str:
-    """
-    Extracción simple de ciudad desde el prompt.
-    """
     match = re.search(r"\ben\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ\s\-]+)", prompt, re.IGNORECASE)
     if match:
         return match.group(1).strip(" ?¿!.,")
@@ -118,9 +127,6 @@ def extract_city(prompt: str) -> str:
 
 
 def extract_expression(prompt: str) -> str:
-    """
-    Intenta extraer una expresión matemática simple del prompt.
-    """
     expression = prompt.lower()
     expression = expression.replace("cuánto es", "")
     expression = expression.replace("cuanto es", "")
@@ -164,9 +170,6 @@ def detect_weather_scope(prompt: str) -> str:
 
 
 def extract_datetime_location(prompt: str) -> str | None:
-    """
-    Extrae ubicación limpiando conectores innecesarios.
-    """
     match = re.search(
         r"\ben\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ\s,\-]+)",
         prompt,
@@ -195,6 +198,7 @@ def execute_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
             "tools_used": ["memory"],
             "sources": ["persistent_memory"],
         }
+
     intent = detect_intent(prompt)
 
     logger.info("Intent detectada: %s", intent)
@@ -260,7 +264,7 @@ def execute_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
     if intent == "rag":
         logger.info("Ejecutando pipeline RAG")
         return {
-            "answer": answer_with_rag_stream(prompt),
+            "answer": answer_with_rag(prompt),
             "detected_intent": "rag",
             "tools_used": ["rag"],
             "sources": ["local_knowledge_base"],
@@ -299,7 +303,7 @@ def stream_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
             "tools_used": ["memory"],
             "sources": ["persistent_memory"],
         }
-        
+
     intent = detect_intent(prompt)
 
     logger.info("Intent detectada (stream): %s", intent)
@@ -358,11 +362,11 @@ def stream_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
 
     if intent == "rag":
         return {
-                "stream": answer_with_rag_stream(prompt),
-                "detected_intent": "rag",
-                "tools_used": ["rag"],
-                "sources": ["local_knowledge_base"],
-            }
+            "stream": answer_with_rag_stream(prompt),
+            "detected_intent": "rag",
+            "tools_used": ["rag"],
+            "sources": ["local_knowledge_base"],
+        }
 
     if intent == "calculator":
         expression = extract_expression(prompt)
@@ -382,9 +386,5 @@ def stream_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
 
 
 def process_user_message(prompt: str, messages: list[dict[str, str]]) -> str:
-    """
-    Mantiene compatibilidad devolviendo solo texto.
-    """
     result = execute_user_message(prompt, messages)
     return result["answer"]
-
