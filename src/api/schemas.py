@@ -14,6 +14,7 @@ class ChatResponse(BaseModel):
     detected_intent: str | None = None
     tools_used: list[str] = []
     sources: list[str] = []
+    attachments: list[str] = []
 
 
 class SessionMessage(BaseModel):

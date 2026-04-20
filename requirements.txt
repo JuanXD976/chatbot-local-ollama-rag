@@ -21,3 +21,7 @@ fastapi
 uvicorn
 python-multipart
 pydantic
+python-docx
+openpyxl
+pandas
+pillow

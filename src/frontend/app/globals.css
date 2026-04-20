@@ -323,7 +323,6 @@ html[data-theme="dark"] .input-bar {
 }
 
 .message {
-  max-width: min(860px, 82%);
   border-radius: 16px;
   padding: 12px 14px;
   line-height: 1.6;
@@ -332,6 +331,7 @@ html[data-theme="dark"] .input-bar {
 }
 
 .message-user {
+  max-width: min(1000px, 72%);
   background: var(--bubble-user);
   color: white;
   border: 1px solid color-mix(in srgb, var(--bubble-user) 70%, black);
@@ -339,21 +339,12 @@ html[data-theme="dark"] .input-bar {
 }
 
 .message-assistant {
+  max-width: min(2000px, 96%);
   background: var(--bubble-assistant);
   border: 1px solid var(--border);
   white-space: normal;
 }
 
-.message-user {
-  background: var(--bubble-user);
-  color: white;
-  border: 1px solid color-mix(in srgb, var(--bubble-user) 70%, black);
-}
-
-.message-assistant {
-  background: var(--bubble-assistant);
-  border: 1px solid var(--border);
-}
 
 .input-shell {
   display: flex;
@@ -795,6 +786,103 @@ html[data-theme="dark"] .input-bar {
   font-weight: 600;
 }
 
+.sources-box {
+  margin-top: 10px;
+}
+
+.sources-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.source-chip {
+  display: inline-block;
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel-2));
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 12px;
+  margin-right: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.message-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.copy-btn {
+  border: 1px solid var(--border);
+  background: var(--panel-3);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: 0.15s ease;
+}
+
+.copy-btn:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel-3));
+}
+
+.source-chip {
+  display: inline-block;
+  background: color-mix(in srgb, var(--accent) 10%, white 90%);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 12px;
+  margin-right: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+html[data-theme="dark"] .source-chip {
+  background: color-mix(in srgb, var(--accent) 18%, var(--panel-2));
+  color: var(--text);
+}
+
+.message-assistant table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--panel-2);
+  table-layout: fixed;
+}
+
+.message-assistant th,
+.message-assistant td {
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.message-assistant th {
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel-2));
+  font-weight: 700;
+  white-space: normal;
+  line-height: 1.25;
+  font-size: 13px;
+}
+
+.message-assistant td {
+  white-space: normal;
+  line-height: 1.5;
+}
+
+.message-assistant table code {
+  white-space: pre-wrap;
+}
 @media (max-width: 1024px) {
   .app-shell {
     grid-template-columns: 280px 1fr;

@@ -29,16 +29,6 @@ export type DocumentItem = {
   modified_at: string;
 };
 
-export type HealthData = {
-  ok: boolean;
-  ollama_connected: boolean;
-  model: string;
-  model_available: boolean;
-  document_count: number;
-  indexed_chunks: number;
-  vectorstore_exists: boolean;
-};
-
 export type UploadBatchResult = {
   file: string;
   indexed_chunks?: number;
@@ -145,12 +135,11 @@ export async function chatStream(
   finalText: string;
   detectedIntent: string | null;
   sources: string[];
+  attachments: string[];
 }> {
   const res = await fetch(`${API_URL}/chat/stream`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       message,
       session_id: sessionId,
@@ -164,7 +153,9 @@ export async function chatStream(
   const returnedSessionId = res.headers.get("X-Session-Id") || "";
   const detectedIntent = res.headers.get("X-Detected-Intent");
   const rawSources = res.headers.get("X-Sources") || "";
+  const rawAttachments = res.headers.get("X-Attachments") || "";
   const sources = rawSources ? rawSources.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  const attachments = rawAttachments ? rawAttachments.split(",").map((s) => s.trim()).filter(Boolean) : [];
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder("utf-8");
@@ -185,5 +176,89 @@ export async function chatStream(
     finalText,
     detectedIntent,
     sources,
+    attachments,
   };
+}
+
+export async function chatWithAttachments(
+  message: string,
+  files: File[],
+  sessionId?: string | null,
+  onChunk?: (chunk: string) => void
+): Promise<{
+  sessionId: string;
+  finalText: string;
+  detectedIntent: string | null;
+  attachments: string[];
+}> {
+  const formData = new FormData();
+  formData.append("message", message);
+  if (sessionId) {
+    formData.append("session_id", sessionId);
+  }
+
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+
+  const res = await fetch(`${API_URL}/chat/attachments`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok || !res.body) {
+    throw new Error("No se pudo iniciar el análisis con adjuntos.");
+  }
+
+  const returnedSessionId = res.headers.get("X-Session-Id") || "";
+  const detectedIntent = res.headers.get("X-Detected-Intent");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+
+  let finalText = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const chunk = decoder.decode(value, { stream: true });
+    finalText += chunk;
+    onChunk?.(chunk);
+  }
+
+  return {
+    sessionId: returnedSessionId,
+    finalText,
+    detectedIntent,
+    attachments: files.map((file) => file.name),
+  };
+}
+
+export async function exportResponse(content: string, exportFormat: "txt" | "md" | "docx" | "xlsx") {
+  const formData = new FormData();
+  formData.append("content", content);
+  formData.append("export_format", exportFormat);
+
+  const res = await fetch(`${API_URL}/exports/response`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw new Error("No se pudo exportar la respuesta.");
+  }
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+
+  const extension = exportFormat;
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `respuesta.${extension}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  window.URL.revokeObjectURL(url);
 }

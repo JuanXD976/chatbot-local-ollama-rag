@@ -4,11 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import SessionList from "./components/SessionList";
 import MessageBubble from "./components/MessageBubble";
-import ChatComposer from "./components/ChatComposer";
+import AttachmentComposer from "./components/AttachmentComposer";
 import AdminPanel from "./components/AdminPanel";
 
 import {
   chatStream,
+  chatWithAttachments,
   createSession,
   deleteDocument,
   deleteSession,
@@ -27,9 +28,19 @@ type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   timestamp?: string;
+  sources?: string[];
+  attachments?: string[];
 };
 
 type ThemeMode = "light" | "dark" | "auto";
+
+type StreamResult = {
+  sessionId: string;
+  finalText: string;
+  detectedIntent: string | null;
+  sources?: string[];
+  attachments: string[];
+};
 
 export default function HomePage() {
   const [health, setHealth] = useState<any>(null);
@@ -39,6 +50,7 @@ export default function HomePage() {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [docStatus, setDocStatus] = useState<any>(null);
   const [input, setInput] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [pending, setPending] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string>("");
   const [isAdminOpen, setIsAdminOpen] = useState(false);
@@ -125,7 +137,9 @@ export default function HomePage() {
       if (okResults.length > 0 && errorResults.length === 0) {
         setInfoMessage(`Se subieron e indexaron ${okResults.length} documento(s) correctamente.`);
       } else if (okResults.length > 0 && errorResults.length > 0) {
-        setInfoMessage(`Se subieron ${okResults.length} documento(s) correctamente y ${errorResults.length} fallaron.`);
+        setInfoMessage(
+          `Se subieron ${okResults.length} documento(s) correctamente y ${errorResults.length} fallaron.`
+        );
       } else if (errorResults.length > 0) {
         setInfoMessage(`No se pudo subir ningún documento. Primer error: ${errorResults[0].error}`);
       }
@@ -165,7 +179,7 @@ export default function HomePage() {
   }
 
   async function handleSend() {
-    if (!input.trim() || pending) return;
+    if ((!input.trim() && selectedFiles.length === 0) || pending) return;
 
     let sessionId = activeSessionId;
     if (!sessionId) {
@@ -176,35 +190,85 @@ export default function HomePage() {
     }
 
     const userMessage = input.trim();
+    const currentFiles = [...selectedFiles];
+
     setInput("");
+    setSelectedFiles([]);
     setPending(true);
     setInfoMessage("");
     shouldAutoScrollRef.current = true;
 
+    const attachmentNames = currentFiles.map((f) => f.name);
+
     setMessages((prev) => [
       ...prev,
-      { role: "user", content: userMessage, timestamp: new Date().toISOString() },
-      { role: "assistant", content: "", timestamp: new Date().toISOString() },
+      {
+        role: "user",
+        content: userMessage || "(Adjuntos enviados)",
+        timestamp: new Date().toISOString(),
+        attachments: attachmentNames,
+      },
+      {
+        role: "assistant",
+        content: "",
+        timestamp: new Date().toISOString(),
+        sources: [],
+        attachments: [],
+      },
     ]);
 
     try {
-      const result = await chatStream(userMessage, sessionId, (chunk) => {
-        setMessages((prev) => {
-          const next = [...prev];
-          const lastIndex = next.length - 1;
-          next[lastIndex] = {
-            ...next[lastIndex],
-            content: next[lastIndex].content + chunk,
-          };
-          return next;
+      let result: StreamResult;
+
+      if (currentFiles.length > 0) {
+        result = await chatWithAttachments(userMessage, currentFiles, sessionId, (chunk) => {
+          setMessages((prev) => {
+            const next = [...prev];
+            const lastIndex = next.length - 1;
+            next[lastIndex] = {
+              ...next[lastIndex],
+              content: next[lastIndex].content + chunk,
+            };
+            return next;
+          });
         });
-      });
+      } else {
+        result = await chatStream(userMessage, sessionId, (chunk) => {
+          setMessages((prev) => {
+            const next = [...prev];
+            const lastIndex = next.length - 1;
+            next[lastIndex] = {
+              ...next[lastIndex],
+              content: next[lastIndex].content + chunk,
+            };
+            return next;
+          });
+        });
+      }
 
       if (result.sessionId && result.sessionId !== activeSessionId) {
         setActiveSessionId(result.sessionId);
       }
 
+      const finalSources = result.sources ?? [];
+      const finalAttachments = result.attachments ?? [];
+
+      setMessages((prev) => {
+        const next = [...prev];
+        const lastIndex = next.length - 1;
+        next[lastIndex] = {
+          ...next[lastIndex],
+          sources: finalSources,
+          attachments: finalAttachments,
+        };
+        return next;
+      });
+
       await refreshSessions();
+
+      if (result.sessionId) {
+        setActiveSessionId(result.sessionId);
+      }
     } catch (error: any) {
       setMessages((prev) => {
         const next = [...prev];
@@ -213,6 +277,8 @@ export default function HomePage() {
           role: "assistant",
           content: error.message || "Error al generar la respuesta.",
           timestamp: new Date().toISOString(),
+          sources: [],
+          attachments: [],
         };
         return next;
       });
@@ -292,9 +358,9 @@ export default function HomePage() {
             <div className="hero-card">
               <div className="hero-top">
                 <div className="hero-left">
-                  <h1 className="page-title">🤖 Chatbot Local con Ollama - V5.0</h1>
+                  <h1 className="page-title">🤖 Chatbot Local con Ollama - V6.0</h1>
                   <p className="page-subtitle">
-                    Frontend modular, subida múltiple con drag & drop y administración avanzada.
+                    Chat multimodal local con adjuntos, visión, exportación y administración avanzada.
                   </p>
                   <p className="small-muted" style={{ marginTop: 8 }}>
                     Modelo local actual: {health?.model ?? "desconocido"}
@@ -328,7 +394,7 @@ export default function HomePage() {
               <div className="chat-window">
                 {messages.length === 0 && (
                   <div className="empty-state">
-                    Empieza una conversación o carga una sesión existente.
+                    Empieza una conversación, adjunta archivos o carga una sesión existente.
                   </div>
                 )}
 
@@ -338,16 +404,20 @@ export default function HomePage() {
                     role={message.role}
                     content={message.content}
                     pending={pending && index === messages.length - 1}
+                    sources={message.sources}
+                    attachments={message.attachments}
                   />
                 ))}
               </div>
             </div>
 
             <div className="input-bar">
-              <ChatComposer
+              <AttachmentComposer
                 value={input}
                 pending={pending}
+                selectedFiles={selectedFiles}
                 onChange={setInput}
+                onFilesChange={setSelectedFiles}
                 onSend={handleSend}
               />
             </div>

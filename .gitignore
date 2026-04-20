@@ -5,6 +5,8 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+*.pyc
+*.pyo
 *.so
 .python-version
 .pytest_cache/
