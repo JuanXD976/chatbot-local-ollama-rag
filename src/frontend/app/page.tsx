@@ -292,7 +292,7 @@ export default function HomePage() {
             <div className="hero-card">
               <div className="hero-top">
                 <div className="hero-left">
-                  <h1 className="page-title">🤖 Chatbot Local con Ollama - V4.0</h1>
+                  <h1 className="page-title">🤖 Chatbot Local con Ollama - V5.0</h1>
                   <p className="page-subtitle">
                     Frontend modular, subida múltiple con drag & drop y administración avanzada.
                   </p>

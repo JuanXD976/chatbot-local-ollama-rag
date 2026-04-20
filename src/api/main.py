@@ -23,8 +23,9 @@ from src.llm.ollama_client import check_ollama_connection, clean_response
 from src.memory.memory_extractor import extract_memory_fact
 from src.memory.memory_service import append_message_to_memory, reset_persistent_memory
 from src.routing.router import detect_intent
+from src.security.prompt_guard import assess_user_prompt, get_blocked_response
 
-app = FastAPI(title="Chatbot Local API", version="3.0.0")
+app = FastAPI(title="Chatbot Local API", version="5.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -66,19 +67,30 @@ def health() -> HealthResponse:
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(payload: ChatRequest) -> ChatResponse:
+    guard = assess_user_prompt(payload.message)
+    if guard.blocked:
+        blocked_answer = get_blocked_response(guard.reason)
+        return ChatResponse(
+            session_id=payload.session_id or "blocked_request",
+            answer=blocked_answer,
+            detected_intent="security_block",
+            tools_used=[],
+            sources=["security_layer"],
+        )
+
     chat_service, session_service = build_services()
 
     session_id = chat_service.ensure_session(payload.session_id)
     messages_for_model = build_messages_for_model(
-      session_service=session_service,
-      session_id=session_id,
-      current_prompt=payload.message,
+        session_service=session_service,
+        session_id=session_id,
+        current_prompt=payload.message,
     )
 
     response = chat_service.process_message(
-      session_id=session_id,
-      user_message=payload.message,
-      messages_for_model=messages_for_model,
+        session_id=session_id,
+        user_message=payload.message,
+        messages_for_model=messages_for_model,
     )
 
     memory_fact = extract_memory_fact(payload.message)
@@ -96,6 +108,21 @@ def chat(payload: ChatRequest) -> ChatResponse:
 
 @app.post("/chat/stream")
 def chat_stream(payload: ChatRequest):
+    guard = assess_user_prompt(payload.message)
+    if guard.blocked:
+        blocked_answer = get_blocked_response(guard.reason)
+
+        def blocked_stream():
+            yield blocked_answer
+
+        headers = {
+            "X-Session-Id": payload.session_id or "blocked_request",
+            "X-Detected-Intent": "security_block",
+            "X-Model": OLLAMA_CHAT_MODEL,
+            "X-Sources": "security_layer",
+        }
+        return StreamingResponse(blocked_stream(), media_type="text/plain", headers=headers)
+
     chat_service, session_service = build_services()
 
     session_id = chat_service.ensure_session(payload.session_id)

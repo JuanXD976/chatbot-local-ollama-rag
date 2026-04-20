@@ -1,9 +1,9 @@
 """
 Router de intenciones del chatbot.
 
-Motivo de su creación:
-- Decidir si una consulta debe resolverse con el LLM, con una tool o con RAG.
-- Mantener separada la lógica de enrutado del resto de la aplicación.
+Motivo:
+- Decidir si una consulta debe resolverse con LLM, tools, memoria o RAG.
+- Añadir heurísticas más inteligentes y una primera capa de seguridad.
 """
 
 from __future__ import annotations
@@ -18,7 +18,17 @@ from src.llm.ollama_client import (
     generate_response_stream,
 )
 from src.memory.memory_service import answer_memory_question
-from src.rag.pipeline import answer_with_rag, answer_with_rag_stream
+from src.rag.pipeline import (
+    answer_with_rag,
+    answer_with_rag_stream,
+    should_use_rag_for_query,
+)
+from src.security.prompt_guard import assess_user_prompt, get_blocked_response
+from src.security.response_guard import (
+    get_safe_fallback_response,
+    response_looks_sensitive,
+    sanitize_final_response,
+)
 from src.tools.tools import (
     calculate_expression,
     get_current_datetime,
@@ -30,9 +40,6 @@ logger = logging.getLogger(__name__)
 
 
 def detect_intent(prompt: str) -> str:
-    """
-    Detecta la intención principal del mensaje del usuario.
-    """
     prompt_lower = prompt.lower()
 
     weather_keywords = ["tiempo", "clima", "temperatura", "lluvia", "sol", "viento"]
@@ -48,34 +55,6 @@ def detect_intent(prompt: str) -> str:
         "buscar en internet",
         "en internet",
     ]
-
-    rag_keywords = [
-        "según mis documentos",
-        "segun mis documentos",
-        "en mis documentos",
-        "mis documentos",
-        "mis archivos",
-        "mis pdf",
-        "mis pdfs",
-        "mis docx",
-        "mi documentación",
-        "mi documentacion",
-        "mi base de datos",
-        "mi base documental",
-        "mi base local",
-        "mi base de conocimiento",
-        "busca en mis documentos",
-        "busca en mis archivos",
-        "revisa mis documentos",
-        "revisa mis archivos",
-        "consulta mis documentos",
-        "consulta mis archivos",
-        "en la base local",
-        "en la base de conocimiento",
-        "archivos propios",
-        "nuestra bbdd",
-    ]
-
     calc_keywords = ["calcula", "cuánto es", "cuanto es", "+", "-", "*", "/", "sqrt", "log"]
 
     if any(keyword in prompt_lower for keyword in weather_keywords):
@@ -87,36 +66,13 @@ def detect_intent(prompt: str) -> str:
     if any(keyword in prompt_lower for keyword in web_keywords):
         return "web"
 
-    if any(keyword in prompt_lower for keyword in rag_keywords):
-        return "rag"
-
     if any(keyword in prompt_lower for keyword in calc_keywords):
         return "calculator"
 
+    if should_use_rag_for_query(prompt):
+        return "rag"
+
     return "chat"
-
-
-def is_memory_question(prompt: str) -> bool:
-    prompt_lower = prompt.lower()
-
-    memory_questions = [
-        "cómo me llamo",
-        "como me llamo",
-        "cuál es mi nombre",
-        "cual es mi nombre",
-        "dónde trabajo",
-        "donde trabajo",
-        "en qué trabajo",
-        "en que trabajo",
-        "qué me gusta",
-        "que me gusta",
-        "dónde vivo",
-        "donde vivo",
-        "qué estudio",
-        "que estudio",
-    ]
-
-    return any(q in prompt_lower for q in memory_questions)
 
 
 def extract_city(prompt: str) -> str:
@@ -140,26 +96,11 @@ def detect_weather_scope(prompt: str) -> str:
     prompt_lower = prompt.lower()
 
     weather_scope_map = {
-        "next_week": [
-            "próxima semana",
-            "proxima semana",
-            "siguiente semana",
-        ],
-        "next_weekend": [
-            "próximo fin de semana",
-            "proximo fin de semana",
-            "siguiente fin de semana",
-        ],
-        "weekly": [
-            "esta semana",
-            "toda la semana",
-        ],
-        "tomorrow": [
-            "mañana",
-        ],
-        "today": [
-            "hoy",
-        ],
+        "next_week": ["próxima semana", "proxima semana", "siguiente semana"],
+        "next_weekend": ["próximo fin de semana", "proximo fin de semana", "siguiente fin de semana"],
+        "weekly": ["esta semana", "toda la semana"],
+        "tomorrow": ["mañana"],
+        "today": ["hoy"],
     }
 
     for scope, keywords in weather_scope_map.items():
@@ -182,39 +123,42 @@ def extract_datetime_location(prompt: str) -> str | None:
     location = match.group(1).strip(" ?¿!.,")
     location = location.replace(",", " ")
     location = re.sub(r"\s+", " ", location)
-
     return location.strip()
 
 
 def execute_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
-    """
-    Procesa el mensaje del usuario y devuelve una respuesta estructurada.
-    """
+    guard = assess_user_prompt(prompt)
+    if guard.blocked:
+        return {
+            "answer": get_blocked_response(guard.reason),
+            "detected_intent": "security_block",
+            "tools_used": [],
+            "sources": ["security_layer"],
+        }
+
     memory_answer = answer_memory_question(prompt)
     if memory_answer is not None:
         return {
-            "answer": memory_answer,
+            "answer": f"Según lo que me has comentado antes: {memory_answer}",
             "detected_intent": "memory",
             "tools_used": ["memory"],
             "sources": ["persistent_memory"],
         }
 
     intent = detect_intent(prompt)
-
     logger.info("Intent detectada: %s", intent)
 
     if intent == "datetime":
         location = extract_datetime_location(prompt)
         raw_result = get_current_datetime(location)
-
-        logger.info("Datetime location=%s", location)
-
+        answer = format_tool_result_with_llm(
+            user_prompt=prompt,
+            tool_name="datetime",
+            tool_result=raw_result,
+        )
+        answer = sanitize_final_response(answer)
         return {
-            "answer": format_tool_result_with_llm(
-                user_prompt=prompt,
-                tool_name="datetime",
-                tool_result=raw_result,
-            ),
+            "answer": answer,
             "detected_intent": "datetime",
             "tools_used": ["datetime"],
             "sources": [],
@@ -225,46 +169,47 @@ def execute_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
         scope = detect_weather_scope(prompt)
         raw_result = get_weather(city, scope=scope)
 
-        logger.info("Weather city=%s scope=%s", city, scope)
-
         if scope in ["weekly", "next_week", "next_weekend"]:
-            return {
-                "answer": raw_result,
-                "detected_intent": "weather",
-                "tools_used": ["weather"],
-                "sources": [],
-            }
-
-        return {
-            "answer": format_tool_result_with_llm(
+            answer = sanitize_final_response(raw_result)
+        else:
+            answer = format_tool_result_with_llm(
                 user_prompt=prompt,
                 tool_name="weather",
                 tool_result=raw_result,
-            ),
+            )
+            answer = sanitize_final_response(answer)
+
+        return {
+            "answer": answer,
             "detected_intent": "weather",
             "tools_used": ["weather"],
             "sources": [],
         }
 
     if intent == "web":
-        logger.info("Ejecutando búsqueda web")
         raw_result = search_web(prompt)
-
+        answer = format_tool_result_with_llm(
+            user_prompt=prompt,
+            tool_name="web_search",
+            tool_result=raw_result,
+        )
+        answer = sanitize_final_response(answer)
         return {
-            "answer": format_tool_result_with_llm(
-                user_prompt=prompt,
-                tool_name="web_search",
-                tool_result=raw_result,
-            ),
+            "answer": answer,
             "detected_intent": "web",
             "tools_used": ["web_search"],
             "sources": [],
         }
 
     if intent == "rag":
-        logger.info("Ejecutando pipeline RAG")
+        answer = answer_with_rag(prompt)
+        answer = sanitize_final_response(answer)
+
+        if response_looks_sensitive(answer):
+            answer = get_safe_fallback_response()
+
         return {
-            "answer": answer_with_rag(prompt),
+            "answer": answer,
             "detected_intent": "rag",
             "tools_used": ["rag"],
             "sources": ["local_knowledge_base"],
@@ -272,18 +217,23 @@ def execute_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
 
     if intent == "calculator":
         expression = extract_expression(prompt)
-        logger.info("Calculator expression=%s", expression)
-
+        answer = calculate_expression(expression)
+        answer = sanitize_final_response(answer)
         return {
-            "answer": calculate_expression(expression),
+            "answer": answer,
             "detected_intent": "calculator",
             "tools_used": ["calculator"],
             "sources": [],
         }
 
-    logger.info("Respuesta directa con LLM")
+    answer = generate_response(messages)
+    answer = sanitize_final_response(answer)
+
+    if response_looks_sensitive(answer):
+        answer = get_safe_fallback_response()
+
     return {
-        "answer": generate_response(messages),
+        "answer": answer,
         "detected_intent": "chat",
         "tools_used": [],
         "sources": [],
@@ -291,21 +241,25 @@ def execute_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
 
 
 def stream_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
-    """
-    Variante streaming. Devuelve un generador en los casos soportados.
-    Para tool outputs estructurados o respuestas no streamables, devuelve texto completo.
-    """
+    guard = assess_user_prompt(prompt)
+    if guard.blocked:
+        return {
+            "answer": get_blocked_response(guard.reason),
+            "detected_intent": "security_block",
+            "tools_used": [],
+            "sources": ["security_layer"],
+        }
+
     memory_answer = answer_memory_question(prompt)
     if memory_answer is not None:
         return {
-            "answer": memory_answer,
+            "answer": f"Según lo que me has comentado antes: {memory_answer}",
             "detected_intent": "memory",
             "tools_used": ["memory"],
             "sources": ["persistent_memory"],
         }
 
     intent = detect_intent(prompt)
-
     logger.info("Intent detectada (stream): %s", intent)
 
     if intent == "datetime":
@@ -330,7 +284,7 @@ def stream_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
 
         if scope in ["weekly", "next_week", "next_weekend"]:
             return {
-                "answer": raw_result,
+                "answer": sanitize_final_response(raw_result),
                 "detected_intent": "weather",
                 "tools_used": ["weather"],
                 "sources": [],
@@ -371,7 +325,7 @@ def stream_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
     if intent == "calculator":
         expression = extract_expression(prompt)
         return {
-            "answer": calculate_expression(expression),
+            "answer": sanitize_final_response(calculate_expression(expression)),
             "detected_intent": "calculator",
             "tools_used": ["calculator"],
             "sources": [],

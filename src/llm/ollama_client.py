@@ -1,10 +1,5 @@
 """
 Cliente para conectarse a la API local de Ollama.
-
-Motivo de su creación:
-- Centralizar la conexión con Ollama.
-- Evitar repetir la URL base en varios archivos.
-- Facilitar cambios futuros en la configuración.
 """
 
 from __future__ import annotations
@@ -20,7 +15,6 @@ from src.config.settings import OLLAMA_BASE_URL, OLLAMA_CHAT_MODEL, OLLAMA_MAX_T
 from src.core.exceptions import OllamaConnectionError
 
 logger = logging.getLogger(__name__)
-
 
 STREAM_EXACT_TOKENS = [
     "<file_separator>",
@@ -47,9 +41,6 @@ STREAM_EXACT_TOKENS = [
 
 
 def check_ollama_connection() -> dict:
-    """
-    Comprueba si Ollama está accesible consultando los modelos locales.
-    """
     url = f"{OLLAMA_BASE_URL}/api/tags"
 
     try:
@@ -63,10 +54,6 @@ def check_ollama_connection() -> dict:
 
 
 def clean_response(text: Optional[str]) -> str:
-    """
-    Limpia la respuesta generada por el modelo eliminando tokens internos,
-    etiquetas técnicas y residuos de plantillas de chat.
-    """
     if not text:
         return ""
 
@@ -78,17 +65,10 @@ def clean_response(text: Optional[str]) -> str:
 
     text = re.sub(r"<\|[^>]+\|>", "", text)
     text = re.sub(r"<[a-zA-Z0-9_\-/| ]+>", "", text)
-
-    # restos tipo im_start, im_end, im_tant, im_show user context...
     text = re.sub(r"\bim_[a-zA-Z_ ]+\b", "", text, flags=re.IGNORECASE)
-
-    # restos de cabeceras de rol
     text = re.sub(r"\b(system|assistant|user|chatbot)\s*:", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\b(system|assistant|user|chatbot)\s*>", "", text, flags=re.IGNORECASE)
-
-    # líneas enteras que empiecen por residuos técnicos
     text = re.sub(r"(?mi)^\s*(system_user|assistant_user|systeme_user)\s*$", "", text)
-
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"\n{3,}", "\n\n", text)
     text = re.sub(r"[ \t]{2,}", " ", text)
@@ -97,9 +77,6 @@ def clean_response(text: Optional[str]) -> str:
 
 
 def clean_stream_chunk(text: Optional[str]) -> str:
-    """
-    Limpia un chunk individual recibido en streaming.
-    """
     if not text:
         return ""
 
@@ -115,8 +92,8 @@ def clean_stream_chunk(text: Optional[str]) -> str:
     text = re.sub(r"\b(system|assistant|user|chatbot)\s*:", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\b(system|assistant|user|chatbot)\s*>", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\b(system_user|assistant_user|systeme_user)\b", "", text, flags=re.IGNORECASE)
-
     text = text.replace("\r\n", "\n").replace("\r", "\n")
+
     return text
 
 
@@ -125,9 +102,6 @@ def _build_payload(
     max_tokens: int = OLLAMA_MAX_TOKENS,
     stream: bool = False,
 ) -> dict:
-    """
-    Construye el payload estándar para Ollama.
-    """
     return {
         "model": OLLAMA_CHAT_MODEL,
         "messages": messages,
@@ -159,28 +133,18 @@ def generate_response(
     messages: list[dict[str, str]],
     max_tokens: int = OLLAMA_MAX_TOKENS,
 ) -> str:
-    """
-    Envía mensajes al endpoint /api/chat de Ollama
-    y devuelve el contenido textual completo de la respuesta.
-    """
     url = f"{OLLAMA_BASE_URL}/api/chat"
     payload = _build_payload(messages=messages, max_tokens=max_tokens, stream=False)
 
     try:
-        logger.info("Enviando petición no-stream a Ollama con %s mensajes", len(messages))
         response = requests.post(url, json=payload, timeout=180)
         response.raise_for_status()
-
         data = response.json()
         message = data.get("message", {})
         content = message.get("content", "")
-
-        cleaned = clean_response(content)
-        logger.info("Respuesta completa recibida correctamente desde Ollama")
-        return cleaned
+        return clean_response(content)
 
     except requests.RequestException as exc:
-        logger.exception("Fallo al comunicarse con Ollama")
         raise OllamaConnectionError(
             f"No se pudo obtener respuesta del modelo local: {exc}"
         ) from exc
@@ -190,16 +154,10 @@ def generate_response_stream(
     messages: list[dict[str, str]],
     max_tokens: int = OLLAMA_MAX_TOKENS,
 ) -> Generator[str, None, None]:
-    """
-    Envía mensajes al endpoint /api/chat de Ollama usando streaming
-    y va devolviendo fragmentos de texto progresivamente.
-    """
     url = f"{OLLAMA_BASE_URL}/api/chat"
     payload = _build_payload(messages=messages, max_tokens=max_tokens, stream=True)
 
     try:
-        logger.info("Enviando petición stream a Ollama con %s mensajes", len(messages))
-
         with requests.post(url, json=payload, timeout=180, stream=True) as response:
             response.raise_for_status()
 
@@ -210,7 +168,6 @@ def generate_response_stream(
                 try:
                     data = json.loads(raw_line)
                 except json.JSONDecodeError:
-                    logger.warning("Línea de streaming no válida recibida de Ollama")
                     continue
 
                 message = data.get("message", {})
@@ -224,34 +181,13 @@ def generate_response_stream(
                 if data.get("done", False):
                     break
 
-        logger.info("Streaming completado correctamente desde Ollama")
-
     except requests.RequestException as exc:
-        logger.exception("Fallo durante el streaming con Ollama")
         raise OllamaConnectionError(
             f"No se pudo obtener respuesta en streaming del modelo local: {exc}"
         ) from exc
 
 
-def collect_streamed_response(
-    messages: list[dict[str, str]],
-    max_tokens: int = OLLAMA_MAX_TOKENS,
-) -> str:
-    """
-    Ejecuta streaming interno y devuelve el texto final completo.
-    """
-    chunks = []
-    for chunk in generate_response_stream(messages=messages, max_tokens=max_tokens):
-        chunks.append(chunk)
-
-    return clean_response("".join(chunks))
-
-
 def format_tool_result_with_llm(user_prompt: str, tool_name: str, tool_result: str) -> str:
-    """
-    Usa el modelo para transformar el resultado crudo de una tool
-    en una respuesta clara, natural y útil para el usuario.
-    """
     messages = [
         {
             "role": "system",
@@ -260,18 +196,7 @@ def format_tool_result_with_llm(user_prompt: str, tool_name: str, tool_result: s
                 "Tu tarea es transformar resultados de herramientas en respuestas finales claras, "
                 "naturales y útiles en español. "
                 "No inventes datos. "
-                "No modifiques fechas ni datos numéricos. "
-                "No inventes días de la semana. "
-                "Usa solo la información proporcionada por la herramienta. "
-                "Si la información está en inglés, tradúcela al español. "
-                "Mejora la redacción y el formato, pero no elimines información importante. "
-                "Si la herramienta devuelve una lista completa de elementos, como varios días de una previsión, "
-                "debes incluirlos todos. "
-                "No menciones nombres internos como 'tool', 'router', 'API' o 'tool_result'."
-                "Debes responder SIEMPRE de forma práctica. "
-                "Si el usuario pide cómo hacer algo, incluye pasos y ejemplo de código. "
-                "Si el contexto contiene ejemplos técnicos, reutilízalos. "
-                "No te limites a explicar, enseña cómo aplicarlo."
+                "No menciones nombres internos como tool, router o API."
             ),
         },
         {
@@ -292,26 +217,14 @@ def format_tool_result_with_llm_stream(
     user_prompt: str,
     tool_name: str,
     tool_result: str,
-) -> Generator[str, None, None]:
-    """
-    Igual que format_tool_result_with_llm, pero devolviendo chunks en streaming.
-    """
+):
     messages = [
         {
             "role": "system",
             "content": (
                 "Eres un asistente preciso y profesional. "
-                "Tu tarea es transformar resultados de herramientas en respuestas finales claras, "
-                "naturales y útiles en español. "
-                "No inventes datos. "
-                "No modifiques fechas ni datos numéricos. "
-                "No inventes días de la semana. "
-                "Usa solo la información proporcionada por la herramienta. "
-                "Si la información está en inglés, tradúcela al español. "
-                "Mejora la redacción y el formato, pero no elimines información importante. "
-                "Si la herramienta devuelve una lista completa de elementos, como varios días de una previsión, "
-                "debes incluirlos todos. "
-                "No menciones nombres internos como 'tool', 'router', 'API' o 'tool_result'."
+                "Transforma resultados de herramientas en respuestas finales claras y útiles en español. "
+                "No inventes datos."
             ),
         },
         {

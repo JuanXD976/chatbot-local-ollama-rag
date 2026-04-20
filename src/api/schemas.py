@@ -1,21 +1,40 @@
 from __future__ import annotations
 
-from typing import List, Optional
-
 from pydantic import BaseModel
 
 
 class ChatRequest(BaseModel):
     message: str
-    session_id: Optional[str] = None
+    session_id: str | None = None
 
 
 class ChatResponse(BaseModel):
     session_id: str
     answer: str
-    detected_intent: str
-    tools_used: List[str]
-    sources: List[str]
+    detected_intent: str | None = None
+    tools_used: list[str] = []
+    sources: list[str] = []
+
+
+class SessionMessage(BaseModel):
+    role: str
+    content: str
+    timestamp: str
+
+
+class SessionSummary(BaseModel):
+    session_id: str
+    title: str
+    created_at: str
+    updated_at: str
+
+
+class SessionDetail(BaseModel):
+    session_id: str
+    title: str
+    created_at: str
+    updated_at: str
+    messages: list[SessionMessage]
 
 
 class HealthResponse(BaseModel):
@@ -26,33 +45,6 @@ class HealthResponse(BaseModel):
     document_count: int
     indexed_chunks: int
     vectorstore_exists: bool
-
-
-class SessionSummary(BaseModel):
-    session_id: str
-    title: str
-    created_at: str
-    updated_at: str
-
-
-class SessionMessage(BaseModel):
-    role: str
-    content: str
-    timestamp: str
-
-
-class SessionDetail(BaseModel):
-    session_id: str
-    title: str
-    created_at: str
-    updated_at: str
-    messages: List[SessionMessage]
-
-
-class UploadResponse(BaseModel):
-    path: str
-    filename: str
-    indexed_chunks: int
 
 
 class RebuildResponse(BaseModel):

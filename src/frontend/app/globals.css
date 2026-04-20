@@ -327,9 +327,21 @@ html[data-theme="dark"] .input-bar {
   border-radius: 16px;
   padding: 12px 14px;
   line-height: 1.6;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
   box-shadow: var(--shadow);
+}
+
+.message-user {
+  background: var(--bubble-user);
+  color: white;
+  border: 1px solid color-mix(in srgb, var(--bubble-user) 70%, black);
+  white-space: pre-wrap;
+}
+
+.message-assistant {
+  background: var(--bubble-assistant);
+  border: 1px solid var(--border);
+  white-space: normal;
 }
 
 .message-user {
@@ -451,9 +463,6 @@ html[data-theme="dark"] .input-bar {
   border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 
-.message-assistant p {
-  margin: 0 0 8px;
-}
 
 .message-assistant p:last-child {
   margin-bottom: 0;
@@ -461,13 +470,18 @@ html[data-theme="dark"] .input-bar {
 
 .message-assistant ul,
 .message-assistant ol {
-  margin: 8px 0 10px 0;
-  padding-left: 20px;
+  margin: 6px 0 8px 0;
+  padding-left: 18px;
 }
 
 .message-assistant li {
-  margin-bottom: 5px;
-  padding-left: 1px;
+  margin-bottom: 3px;
+  line-height: 1.5;
+  padding-left: 0;
+}
+
+.message-assistant p {
+  margin: 0 0 6px;
 }
 
 .message-assistant li::marker {
@@ -761,6 +775,26 @@ html[data-theme="dark"] .input-bar {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 10%, var(--panel-3));
 }
+
+.message-assistant li p {
+  margin: 0 !important;
+  display: inline;
+}
+
+.message-assistant li {
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+
+.message-assistant ol,
+.message-assistant ul {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+.message-assistant li strong {
+  font-weight: 600;
+}
+
 @media (max-width: 1024px) {
   .app-shell {
     grid-template-columns: 280px 1fr;

@@ -50,7 +50,7 @@ export type UploadBatchResponse = {
   results: UploadBatchResult[];
 };
 
-export async function healthCheck(): Promise<HealthData> {
+export async function healthCheck() {
   const res = await fetch(`${API_URL}/health`, { cache: "no-store" });
   if (!res.ok) throw new Error("No se pudo consultar el estado del backend.");
   return res.json();
@@ -63,25 +63,19 @@ export async function listSessions(): Promise<SessionSummary[]> {
 }
 
 export async function createSession(): Promise<SessionSummary> {
-  const res = await fetch(`${API_URL}/sessions`, {
-    method: "POST",
-  });
+  const res = await fetch(`${API_URL}/sessions`, { method: "POST" });
   if (!res.ok) throw new Error("No se pudo crear la sesión.");
   return res.json();
 }
 
 export async function getSession(sessionId: string): Promise<SessionDetail> {
   const res = await fetch(`${API_URL}/sessions/${sessionId}`, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error("No se pudo cargar la sesión.");
-  }
+  if (!res.ok) throw new Error("No se pudo cargar la sesión.");
   return res.json();
 }
 
 export async function deleteSession(sessionId: string) {
-  const res = await fetch(`${API_URL}/sessions/${sessionId}`, {
-    method: "DELETE",
-  });
+  const res = await fetch(`${API_URL}/sessions/${sessionId}`, { method: "DELETE" });
   if (!res.ok) throw new Error("No se pudo eliminar la sesión.");
   return res.json();
 }
@@ -113,9 +107,7 @@ export async function uploadDocuments(files: File[]): Promise<UploadBatchRespons
 }
 
 export async function rebuildDocuments() {
-  const res = await fetch(`${API_URL}/documents/rebuild`, {
-    method: "POST",
-  });
+  const res = await fetch(`${API_URL}/documents/rebuild`, { method: "POST" });
 
   if (!res.ok) {
     const error = await res.json();
@@ -139,9 +131,7 @@ export async function deleteDocument(filename: string) {
 }
 
 export async function resetMemory() {
-  const res = await fetch(`${API_URL}/memory/reset`, {
-    method: "POST",
-  });
+  const res = await fetch(`${API_URL}/memory/reset`, { method: "POST" });
   if (!res.ok) throw new Error("No se pudo resetear la memoria.");
   return res.json();
 }
@@ -150,7 +140,12 @@ export async function chatStream(
   message: string,
   sessionId?: string | null,
   onChunk?: (chunk: string) => void
-): Promise<{ sessionId: string; finalText: string; detectedIntent: string | null }> {
+): Promise<{
+  sessionId: string;
+  finalText: string;
+  detectedIntent: string | null;
+  sources: string[];
+}> {
   const res = await fetch(`${API_URL}/chat/stream`, {
     method: "POST",
     headers: {
@@ -168,6 +163,9 @@ export async function chatStream(
 
   const returnedSessionId = res.headers.get("X-Session-Id") || "";
   const detectedIntent = res.headers.get("X-Detected-Intent");
+  const rawSources = res.headers.get("X-Sources") || "";
+  const sources = rawSources ? rawSources.split(",").map((s) => s.trim()).filter(Boolean) : [];
+
   const reader = res.body.getReader();
   const decoder = new TextDecoder("utf-8");
 
@@ -186,5 +184,6 @@ export async function chatStream(
     sessionId: returnedSessionId,
     finalText,
     detectedIntent,
+    sources,
   };
 }
