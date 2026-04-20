@@ -1,62 +1,35 @@
-# 🤖 Chatbot Local con Ollama — V3.0
+# 🤖 Chatbot Local con Ollama — V4.0
 
-Versión V3.0 del proyecto **Chatbot Local con Ollama**, evolucionado hacia una aplicación web con arquitectura desacoplada, experiencia de usuario mejorada y panel de administración integrado.
+Versión V4.0 del proyecto **Chatbot Local con Ollama**, evolucionada a una arquitectura web desacoplada, modular y orientada a producto, con frontend en **Next.js** y backend en **FastAPI**, reutilizando el core local de IA ya construido en versiones anteriores.
 
-Esta versión consolida la migración desde una app experimental en Streamlit hacia una solución más seria basada en **FastAPI + Next.js**, manteniendo el core modular de IA, RAG, memoria persistente, sesiones y tools.
-
----
-
-# 🚀 Qué incluye la V3.0
-
-## Frontend mejorado
-- Interfaz web con **Next.js + React + TypeScript**
-- Tema visual claro / oscuro / automático
-- Mensajes del usuario alineados a la derecha
-- Mensajes del asistente alineados a la izquierda
-- Markdown renderizado en respuestas del asistente
-- Menús contextuales `⋯` para sesiones y documentos
-- Panel lateral de administración con:
-  - memoria persistente
-  - base documental RAG
-  - estado del sistema
-  - selector de tema
-
-## Backend consolidado
-- API REST con **FastAPI**
-- Endpoint de streaming para respuestas progresivas
-- Gestión de sesiones conversacionales
-- Memoria persistente del usuario
-- Integración con Ollama
-- Sistema RAG con indexación documental automática
-
-## Gestión documental RAG
-- Subida de múltiples archivos a la vez
-- Indexación automática al subir documentos
-- Eliminación de documentos y embeddings asociados
-- Reindexado global del corpus como tarea de mantenimiento
-- Soporte para:
-  - `.txt`
-  - `.md`
-  - `.pdf`
-  - `.docx`
-
-## Memoria persistente
-- Guarda hechos explícitos del usuario
-- Respuesta determinista para preguntas simples:
-  - nombre
-  - trabajo
-  - gustos
-  - lugar de residencia
-  - estudios
-
-## Limpieza de respuestas
-- Eliminación de residuos de plantillas del modelo
-- Reducción de tokens extraños en salida
-- Mejor control del streaming y de los stop tokens
+La V4 introduce una mejora clara en estructura del frontend, experiencia de administración, subida múltiple de documentos, drag & drop y una organización más profesional de la interfaz.
 
 ---
 
-# 🏗 Arquitectura general
+# 🚀 Qué incluye la V4.0
+
+## Arquitectura general
+- Backend con **FastAPI**
+- Frontend con **Next.js + React + TypeScript**
+- LLM local con **Ollama**
+- Sistema RAG local con **ChromaDB**
+- Memoria persistente
+- Gestión de sesiones
+- Streaming de respuestas
+
+## Mejoras principales de la V4
+- Frontend más modular con componentes separados
+- Panel de administración con pestañas
+- Drag & drop para documentos
+- Subida múltiple de archivos
+- Gestión documental más limpia
+- Menús contextuales para sesiones y documentos
+- Soporte de temas visuales
+- Mejor organización del código frontend
+
+---
+
+# 🧱 Arquitectura del proyecto
 
 ```text
 Usuario
@@ -65,8 +38,8 @@ Next.js Frontend
    ↓
 FastAPI Backend
    ↓
-Core IA reutilizado
-   ├── LLM local con Ollama
+Core IA local
+   ├── Ollama
    ├── Router de intenciones
    ├── Tools
    ├── Memoria persistente
@@ -94,14 +67,23 @@ V1/
 │   ├── core/
 │   ├── frontend/
 │   │   ├── app/
-│   │   ├── components/
-│   │   └── lib/
+│   │   │   ├── components/
+│   │   │   ├── globals.css
+│   │   │   ├── layout.tsx
+│   │   │   └── page.tsx
+│   │   ├── lib/
+│   │   ├── next-env.d.ts
+│   │   ├── next.config.ts
+│   │   ├── package.json
+│   │   └── tsconfig.json
 │   ├── llm/
 │   ├── memory/
 │   ├── rag/
 │   ├── routing/
 │   ├── tools/
 │   └── utils/
+├── launch_app.py
+├── run_chatbot.bat
 ├── .env
 ├── .gitignore
 ├── README.md
@@ -138,13 +120,22 @@ http://localhost:8000/docs
 La carpeta src/frontend/ contiene el frontend del proyecto.
 
 Funcionalidades actuales de interfaz:
-- Sidebar centrado en sesiones
-- Panel ⋯ de administración
-- Tema claro / oscuro / auto
+- Sidebar de sesiones
 - Chat con streaming
+- Panel de administración con pestañas
+- Tema claro / oscuro / auto
 - Renderizado markdown
-- Gestión documental integrada
-- Menús contextuales para eliminar sesiones y documentos
+- Gestión documental RAG
+- Drag & drop para documentos
+- Subida múltiple de archivos
+- Menús ⋯ para acciones secundarias
+
+## Componentes principales
+- SessionList.tsx
+- MessageBubble.tsx
+- ChatComposer.tsx
+- AdminPanel.tsx
+- UploadDropzone.tsx
 
 # 🧠 Core IA
 
@@ -181,7 +172,7 @@ Formatos recomendados:
 ## Flujo documental actual
 ### Subida documental
 - permite subir varios archivos a la vez
-- guarda cada archivo
+- admite drag & drop
 - indexa automáticamente cada documento
 ### Eliminar documento
 - elimina el archivo físico
@@ -295,17 +286,34 @@ Mi nombre es Juan
 ¿Cuál es mi nombre?
 ```
 ---
+# ✅ Estado actual de la V4.0
+La V4.0 deja resueltos estos bloques:
+
+- arquitectura FastAPI + Next.js consolidada
+- frontend modularizado en componentes
+- sesiones persistentes
+- memoria persistente funcional
+- respuestas deterministas para memoria básica
+- streaming operativo
+- subida múltiple de documentos
+- drag & drop documental
+- indexación automática al subir
+- eliminación documental con limpieza del índice
+- panel de administración con pestañas
+- temas visuales
+- menús contextuales ⋯
+- mejor separación de responsabilidades en frontend
 
 # 🔮 Roadmap futuro
 
-Próximas mejoras previstas:
+El siguiente paso natural del proyecto sería una versión posterior centrada en capacidades más avanzadas, por ejemplo:
 
-- [ ] persistencia de preferencias de usuario
-- [ ] componentes React más desacoplados
-- [ ] drag & drop para documentos
-- [ ] mejor RAG con citas y fuentes visibles
-- [ ] mejoras de UX móvil
-- [ ] ajustes más avanzados de memoria y administración
+- [ ] análisis de imágenes o archivos dentro del chat
+- [ ] RAG siempre activo como contexto adicional
+- [ ] fuentes/citas visibles del documento usado
+- [ ] mejor estrategia híbrida entre memoria, RAG y LLM
+- [ ] más robustez y testing
+- [ ] persistencia más avanzada de preferencias
 
 ---
 

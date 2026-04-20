@@ -40,7 +40,7 @@ data/vectorstore/chroma_db/
 data/memory/
 
 # =========================
-# NODE / NEXT
+# FRONTEND / NEXT
 # =========================
 src/frontend/node_modules/
 src/frontend/.next/
@@ -55,6 +55,8 @@ out/
 
 # HuggingFace / cache
 .cache/
+*.tmp
+*.temp
 
 # Testing / coverage
 .coverage
@@ -74,6 +76,12 @@ logs/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# =========================
+# BUILD / DIST
+# =========================
+dist/
+build/
 
 # apuntes
 docs/

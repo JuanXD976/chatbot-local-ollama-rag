@@ -663,7 +663,104 @@ html[data-theme="dark"] .input-bar {
   background: color-mix(in srgb, var(--accent) 12%, var(--panel-2));
   border-color: var(--accent-2);
 }
+.upload-zone-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
+.upload-zone {
+  border: 1px dashed var(--accent);
+  border-radius: 14px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--panel-2));
+  text-align: center;
+  transition: 0.2s ease;
+}
+
+.upload-zone-active {
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel-2));
+  border-color: var(--accent-2);
+}
+
+.upload-zone-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.upload-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
+.upload-btn {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel-2));
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.upload-btn:hover {
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel-2));
+  border-color: var(--accent-2);
+}
+
+.selected-files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.selected-file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+}
+
+.selected-file-info {
+  min-width: 0;
+}
+
+.mini-remove-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-3);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-tab {
+  border: 1px solid var(--border);
+  background: var(--panel-3);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.admin-tab.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel-3));
+}
 @media (max-width: 1024px) {
   .app-shell {
     grid-template-columns: 280px 1fr;

@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
-import UploadButton from "./components/UploadButton";
+import SessionList from "./components/SessionList";
+import MessageBubble from "./components/MessageBubble";
+import ChatComposer from "./components/ChatComposer";
+import AdminPanel from "./components/AdminPanel";
 
 import {
   chatStream,
@@ -42,11 +43,8 @@ export default function HomePage() {
   const [infoMessage, setInfoMessage] = useState<string>("");
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>("light");
-  const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
-  const [openDocumentMenuName, setOpenDocumentMenuName] = useState<string | null>(null);
 
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
 
   async function refreshHealth() {
@@ -81,7 +79,6 @@ export default function HomePage() {
       }))
     );
     setInfoMessage("");
-    setOpenSessionMenuId(null);
 
     requestAnimationFrame(() => {
       if (chatScrollRef.current) {
@@ -96,13 +93,11 @@ export default function HomePage() {
     setActiveSessionId(session.session_id);
     setMessages([]);
     setInfoMessage("");
-    setOpenSessionMenuId(null);
   }
 
   async function handleDeleteSession(sessionId: string) {
     await deleteSession(sessionId);
     setInfoMessage("Sesión eliminada.");
-    setOpenSessionMenuId(null);
 
     const updated = await listSessions();
     setSessions(updated);
@@ -128,17 +123,11 @@ export default function HomePage() {
       const errorResults = result.results.filter((r) => r.error);
 
       if (okResults.length > 0 && errorResults.length === 0) {
-        setInfoMessage(
-          `Se subieron e indexaron ${okResults.length} documento(s) correctamente.`
-        );
+        setInfoMessage(`Se subieron e indexaron ${okResults.length} documento(s) correctamente.`);
       } else if (okResults.length > 0 && errorResults.length > 0) {
-        setInfoMessage(
-          `Se subieron ${okResults.length} documento(s) correctamente y ${errorResults.length} fallaron.`
-        );
+        setInfoMessage(`Se subieron ${okResults.length} documento(s) correctamente y ${errorResults.length} fallaron.`);
       } else if (errorResults.length > 0) {
-        setInfoMessage(
-          `No se pudo subir ningún documento. Primer error: ${errorResults[0].error}`
-        );
+        setInfoMessage(`No se pudo subir ningún documento. Primer error: ${errorResults[0].error}`);
       }
 
       await refreshDocuments();
@@ -162,10 +151,7 @@ export default function HomePage() {
   async function handleDeleteDocument(filename: string) {
     try {
       const result = await deleteDocument(filename);
-      setInfoMessage(
-        `Documento eliminado correctamente. Chunks borrados del índice: ${result.deleted_chunks ?? 0}`
-      );
-      setOpenDocumentMenuName(null);
+      setInfoMessage(`Documento eliminado correctamente. Chunks borrados del índice: ${result.deleted_chunks ?? 0}`);
       await refreshDocuments();
       await refreshHealth();
     } catch (error: any) {
@@ -235,28 +221,6 @@ export default function HomePage() {
     }
   }
 
-  function handleTextareaKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  }
-
-  function autoResizeTextarea() {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "0px";
-    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
-  }
-
-  function handleChatScroll() {
-    const el = chatScrollRef.current;
-    if (!el) return;
-
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    shouldAutoScrollRef.current = distanceFromBottom < 120;
-  }
-
   function applyTheme(mode: ThemeMode) {
     setThemeMode(mode);
     localStorage.setItem("chatbot_theme_mode", mode);
@@ -272,17 +236,13 @@ export default function HomePage() {
     html.setAttribute("data-theme", mode);
   }
 
-  function toggleSessionMenu(sessionId: string) {
-    setOpenSessionMenuId((prev) => (prev === sessionId ? null : sessionId));
-  }
+  function handleChatScroll() {
+    const el = chatScrollRef.current;
+    if (!el) return;
 
-  function toggleDocumentMenu(docName: string) {
-    setOpenDocumentMenuName((prev) => (prev === docName ? null : docName));
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    shouldAutoScrollRef.current = distanceFromBottom < 120;
   }
-
-  useEffect(() => {
-    autoResizeTextarea();
-  }, [input]);
 
   useEffect(() => {
     if (!chatScrollRef.current) return;
@@ -306,16 +266,6 @@ export default function HomePage() {
     init();
   }, []);
 
-  useEffect(() => {
-    function handleGlobalClick() {
-      setOpenSessionMenuId(null);
-      setOpenDocumentMenuName(null);
-    }
-
-    window.addEventListener("click", handleGlobalClick);
-    return () => window.removeEventListener("click", handleGlobalClick);
-  }, []);
-
   const systemStatusText = useMemo(() => {
     if (!health) return "Comprobando estado del sistema...";
     if (!health.ok) return "No se pudo conectar con Ollama.";
@@ -327,62 +277,13 @@ export default function HomePage() {
       <div className="app-shell">
         <aside className="sidebar">
           <div className="sidebar-scroll">
-            <div className="block">
-              <h2 className="section-title">Sesiones</h2>
-
-              <div className="stack">
-                <button className="btn btn-primary" onClick={handleNewSession}>
-                  Nueva conversación
-                </button>
-
-                {sessions.length === 0 && (
-                  <div className="empty-state">Todavía no hay sesiones.</div>
-                )}
-
-                {sessions.map((session) => (
-                  <div
-                    key={session.session_id}
-                    className={`session-item ${activeSessionId === session.session_id ? "session-active" : ""}`}
-                  >
-                    <div className="item-top-row">
-                      <button
-                        className="session-title-btn"
-                        onClick={() => loadSession(session.session_id)}
-                      >
-                        <div className="session-title-text">{session.title}</div>
-                      </button>
-
-                      <div className="menu-wrapper">
-                        <button
-                          className="menu-trigger"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleSessionMenu(session.session_id);
-                          }}
-                          title="Opciones"
-                        >
-                          ⋯
-                        </button>
-
-                        {openSessionMenuId === session.session_id && (
-                          <div
-                            className="context-menu"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              className="context-menu-item danger"
-                              onClick={() => handleDeleteSession(session.session_id)}
-                            >
-                              Eliminar sesión
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <SessionList
+              sessions={sessions}
+              activeSessionId={activeSessionId}
+              onCreate={handleNewSession}
+              onLoad={loadSession}
+              onDelete={handleDeleteSession}
+            />
           </div>
         </aside>
 
@@ -391,9 +292,9 @@ export default function HomePage() {
             <div className="hero-card">
               <div className="hero-top">
                 <div className="hero-left">
-                  <h1 className="page-title">🤖 Chatbot Local con Ollama - V3.0</h1>
+                  <h1 className="page-title">🤖 Chatbot Local con Ollama - V4.0</h1>
                   <p className="page-subtitle">
-                    Experiencia premium con Next.js + FastAPI, memoria persistente y administración RAG.
+                    Frontend modular, subida múltiple con drag & drop y administración avanzada.
                   </p>
                   <p className="small-muted" style={{ marginTop: 8 }}>
                     Modelo local actual: {health?.model ?? "desconocido"}
@@ -432,213 +333,41 @@ export default function HomePage() {
                 )}
 
                 {messages.map((message, index) => (
-                  <div
+                  <MessageBubble
                     key={index}
-                    className={`message-row ${
-                      message.role === "user" ? "message-row-user" : "message-row-assistant"
-                    }`}
-                  >
-                    <div
-                      className={`message ${
-                        message.role === "user" ? "message-user" : "message-assistant"
-                      }`}
-                    >
-                      {message.content ? (
-                        message.role === "assistant" ? (
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {message.content}
-                          </ReactMarkdown>
-                        ) : (
-                          message.content
-                        )
-                      ) : pending && index === messages.length - 1 ? (
-                        <span className="assistant-thinking">Pensando...</span>
-                      ) : (
-                        ""
-                      )}
-                    </div>
-                  </div>
+                    role={message.role}
+                    content={message.content}
+                    pending={pending && index === messages.length - 1}
+                  />
                 ))}
               </div>
             </div>
 
             <div className="input-bar">
-              <div className="input-shell">
-                <textarea
-                  ref={textareaRef}
-                  className="chat-input"
-                  placeholder="Escribe tu mensaje..."
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleTextareaKeyDown}
-                  rows={1}
-                />
-                <button
-                  className="send-btn"
-                  onClick={handleSend}
-                  disabled={pending || !input.trim()}
-                  title={pending ? "Generando..." : "Enviar"}
-                >
-                  ↑
-                </button>
-              </div>
+              <ChatComposer
+                value={input}
+                pending={pending}
+                onChange={setInput}
+                onSend={handleSend}
+              />
             </div>
           </div>
         </main>
       </div>
 
-      {isAdminOpen && (
-        <>
-          <div className="overlay" onClick={() => setIsAdminOpen(false)} />
-          <aside className="admin-panel">
-            <div className="admin-header">
-              <div>
-                <h2 className="admin-title">Administración</h2>
-                <div className="small-muted">
-                  Gestiona memoria, documentos RAG y apariencia visual.
-                </div>
-              </div>
-
-              <button className="btn btn-icon" onClick={() => setIsAdminOpen(false)}>
-                ×
-              </button>
-            </div>
-
-            <div className="stack">
-              <div className="block" style={{ marginBottom: 0 }}>
-                <h3 className="section-title">Tema visual</h3>
-                <div className="theme-options">
-                  <button
-                    className={`theme-chip ${themeMode === "light" ? "active" : ""}`}
-                    onClick={() => applyTheme("light")}
-                  >
-                    Claro
-                  </button>
-                  <button
-                    className={`theme-chip ${themeMode === "dark" ? "active" : ""}`}
-                    onClick={() => applyTheme("dark")}
-                  >
-                    Oscuro
-                  </button>
-                  <button
-                    className={`theme-chip ${themeMode === "auto" ? "active" : ""}`}
-                    onClick={() => applyTheme("auto")}
-                  >
-                    Auto
-                  </button>
-                </div>
-              </div>
-
-              <div className="block" style={{ marginBottom: 0 }}>
-                <h3 className="section-title">Estado del sistema</h3>
-                <div className="grid-two">
-                  <div className="stat-card">
-                    <strong>Modelo</strong>
-                    <div className="small-muted" style={{ marginTop: 6 }}>
-                      {health?.model ?? "desconocido"}
-                    </div>
-                  </div>
-                  <div className="stat-card">
-                    <strong>Conexión</strong>
-                    <div className="small-muted" style={{ marginTop: 6 }}>
-                      {health?.ok ? "Operativa" : "Con incidencias"}
-                    </div>
-                  </div>
-                  <div className="stat-card">
-                    <strong>Documentos</strong>
-                    <div className="small-muted" style={{ marginTop: 6 }}>
-                      {docStatus?.document_count ?? 0}
-                    </div>
-                  </div>
-                  <div className="stat-card">
-                    <strong>Chunks</strong>
-                    <div className="small-muted" style={{ marginTop: 6 }}>
-                      {docStatus?.indexed_chunks ?? 0}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="block" style={{ marginBottom: 0 }}>
-                <h3 className="section-title">Memoria</h3>
-                <div className="stack">
-                  <button className="btn" onClick={handleResetMemory}>
-                    Borrar memoria persistente
-                  </button>
-                </div>
-              </div>
-
-              <div className="block" style={{ marginBottom: 0 }}>
-                <h3 className="section-title">Base documental RAG</h3>
-
-                <div className="small-muted" style={{ marginBottom: 10 }}>
-                  Sube, indexa, elimina o reindexa documentos del sistema.
-                </div>
-
-                <div className="stack">
-                  {documents.length === 0 && (
-                    <div className="empty-state">No hay documentos cargados.</div>
-                  )}
-
-                  {documents.map((doc) => (
-                    <div key={doc.name} className="doc-item">
-                      <div className="item-top-row">
-                        <div className="doc-main-info">
-                          <strong>{doc.name}</strong>
-                          <div className="doc-meta">
-                            {doc.suffix} · {(doc.size_bytes / 1024).toFixed(2)} KB · {doc.modified_at}
-                          </div>
-                        </div>
-
-                        <div className="menu-wrapper">
-                          <button
-                            className="menu-trigger"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleDocumentMenu(doc.name);
-                            }}
-                            title="Opciones"
-                          >
-                            ⋯
-                          </button>
-
-                          {openDocumentMenuName === doc.name && (
-                            <div
-                              className="context-menu"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <button
-                                className="context-menu-item danger"
-                                onClick={() => handleDeleteDocument(doc.name)}
-                              >
-                                Eliminar documento
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="divider" />
-
-                <UploadButton onUpload={handleUploadFiles} />
-
-                <div className="small-muted" style={{ marginTop: 8 }}>
-                  Puedes seleccionar y subir varios documentos a la vez.
-                </div>
-
-                <div className="divider" />
-
-                <button className="btn" onClick={handleRebuild}>
-                  Reindexar todo
-                </button>
-              </div>
-            </div>
-          </aside>
-        </>
-      )}
+      <AdminPanel
+        open={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
+        themeMode={themeMode}
+        onApplyTheme={applyTheme}
+        health={health}
+        docStatus={docStatus}
+        documents={documents}
+        onResetMemory={handleResetMemory}
+        onUploadFiles={handleUploadFiles}
+        onDeleteDocument={handleDeleteDocument}
+        onRebuild={handleRebuild}
+      />
     </>
   );
 }
