@@ -333,13 +333,3 @@ Proyecto desarrollado como práctica personal para:
 Desarrollado por Juan Antonio como proyecto personal de aprendizaje y portfolio.
 
 ---
-
-# 7. Mi recomendación final de limpieza
-
-Haz esto antes de seguir con nuevas mejoras:
-
-## mover Streamlit a legacy
-```text
-legacy/streamlit/app_streamlit_v1.py
-```
----
