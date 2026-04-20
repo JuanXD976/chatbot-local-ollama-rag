@@ -1,35 +1,53 @@
-# 🤖 Chatbot Local con Ollama — V4.0
+# 🤖 Chatbot Local con Ollama — V5.0
 
-Versión V4.0 del proyecto **Chatbot Local con Ollama**, evolucionada a una arquitectura web desacoplada, modular y orientada a producto, con frontend en **Next.js** y backend en **FastAPI**, reutilizando el core local de IA ya construido en versiones anteriores.
+Versión V5.0 del proyecto **Chatbot Local con Ollama**, centrada en mejorar la **inteligencia del sistema**, la **seguridad**, el **uso de RAG** y la **orquestación entre memoria, herramientas y documentos**.
 
-La V4 introduce una mejora clara en estructura del frontend, experiencia de administración, subida múltiple de documentos, drag & drop y una organización más profesional de la interfaz.
+Esta versión consolida una arquitectura local moderna con:
 
----
-
-# 🚀 Qué incluye la V4.0
-
-## Arquitectura general
-- Backend con **FastAPI**
-- Frontend con **Next.js + React + TypeScript**
-- LLM local con **Ollama**
-- Sistema RAG local con **ChromaDB**
-- Memoria persistente
-- Gestión de sesiones
-- Streaming de respuestas
-
-## Mejoras principales de la V4
-- Frontend más modular con componentes separados
-- Panel de administración con pestañas
-- Drag & drop para documentos
-- Subida múltiple de archivos
-- Gestión documental más limpia
-- Menús contextuales para sesiones y documentos
-- Soporte de temas visuales
-- Mejor organización del código frontend
+- **Frontend** en Next.js + React + TypeScript
+- **Backend** en FastAPI
+- **LLM local** con Ollama
+- **RAG local** con ChromaDB
+- **Memoria persistente**
+- **Streaming**
+- **Capa básica de seguridad** contra prompt injection
 
 ---
 
-# 🧱 Arquitectura del proyecto
+# 🚀 Novedades principales de la V5.0
+
+## Inteligencia del sistema
+- Detección de intención más robusta
+- Uso automático de RAG cuando la consulta lo requiere
+- Mejor separación entre:
+  - memoria del usuario
+  - contexto documental
+  - tools
+  - generación final del modelo
+
+## Seguridad
+- Bloqueo de peticiones de prompt injection
+- Protección frente a intentos de revelar:
+  - system prompt
+  - instrucciones internas
+  - contexto oculto
+  - memoria completa
+- Sanitización del contexto documental antes de pasarlo al modelo
+- Limpieza de respuesta final para evitar tokens o restos internos
+
+## RAG mejorado
+- Respuestas documentales más limpias
+- Fuentes consultadas al final de la respuesta
+- Heurísticas para no forzar RAG cuando no hay contexto útil
+
+## Memoria
+- Uso más controlado de la memoria persistente
+- Respuestas personales más directas
+- Menor mezcla de datos personales en respuestas no relacionadas
+
+---
+
+# 🧱 Arquitectura general
 
 ```text
 Usuario
@@ -39,12 +57,12 @@ Next.js Frontend
 FastAPI Backend
    ↓
 Core IA local
-   ├── Ollama
    ├── Router de intenciones
-   ├── Tools
+   ├── Prompt Guard (seguridad)
    ├── Memoria persistente
-   ├── Sesiones
-   └── RAG con ChromaDB
+   ├── RAG / recuperación documental
+   ├── Tools
+   └── LLM local con Ollama
 ```
 ---
 ---
@@ -80,10 +98,12 @@ V1/
 │   ├── memory/
 │   ├── rag/
 │   ├── routing/
+│   ├── security/
+│   │    ├── prompt_guard.py
+│   │    ├── context_sanitizer.py
+│   │    └── response_guard.py
 │   ├── tools/
 │   └── utils/
-├── launch_app.py
-├── run_chatbot.bat
 ├── .env
 ├── .gitignore
 ├── README.md
@@ -286,34 +306,32 @@ Mi nombre es Juan
 ¿Cuál es mi nombre?
 ```
 ---
-# ✅ Estado actual de la V4.0
-La V4.0 deja resueltos estos bloques:
+# ✅ Estado actual de la V5.0
+La V5.0 deja resueltos estos bloques:
 
-- arquitectura FastAPI + Next.js consolidada
-- frontend modularizado en componentes
+- arquitectura local moderna
+- frontend modular
 - sesiones persistentes
 - memoria persistente funcional
-- respuestas deterministas para memoria básica
 - streaming operativo
+- RAG local con fuentes
 - subida múltiple de documentos
 - drag & drop documental
-- indexación automática al subir
-- eliminación documental con limpieza del índice
-- panel de administración con pestañas
-- temas visuales
-- menús contextuales ⋯
-- mejor separación de responsabilidades en frontend
+- panel de administración
+- tema visual
+- capa de seguridad contra prompt injection
+- sanitización de contexto documental
+- limpieza de respuestas internas del modelo
 
 # 🔮 Roadmap futuro
 
 El siguiente paso natural del proyecto sería una versión posterior centrada en capacidades más avanzadas, por ejemplo:
 
-- [ ] análisis de imágenes o archivos dentro del chat
-- [ ] RAG siempre activo como contexto adicional
-- [ ] fuentes/citas visibles del documento usado
-- [ ] mejor estrategia híbrida entre memoria, RAG y LLM
-- [ ] más robustez y testing
-- [ ] persistencia más avanzada de preferencias
+- [ ] subir imágenes al chat
+- [ ] analizar imágenes y archivos directamente en la conversación
+- [ ] vista previa de adjuntos
+- [ ] contexto temporal por archivo
+- [ ] integración del análisis visual con el flujo conversacional
 
 ---
 
