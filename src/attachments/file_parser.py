@@ -77,14 +77,14 @@ def parse_attachment(file_name: str, file_bytes: bytes) -> ParsedAttachment:
             file_name=file_name,
             mime_group="image",
             extracted_text="",
-            preview_text=f"Archivo visual adjunto: {file_name}",
+            preview_text=f"Attached visual file: {file_name}",
         )
 
     return ParsedAttachment(
         file_name=file_name,
         mime_group="unknown",
         extracted_text="",
-        preview_text=f"No se pudo extraer texto del archivo {file_name}.",
+        preview_text=f"Could not extract text from file {file_name}.",
     )
 
 
@@ -103,13 +103,13 @@ def parse_csv(file_bytes: bytes) -> str:
     rows = list(reader)
 
     if not rows:
-        return "CSV vacío."
+        return "Empty CSV."
 
     lines = []
     header = rows[0]
-    lines.append("CSV detectado.")
-    lines.append(f"Columnas: {', '.join(header)}")
-    lines.append("Primeras filas:")
+    lines.append("Detected CSV.")
+    lines.append(f"Columns: {', '.join(header)}")
+    lines.append("First rows:")
 
     for row in rows[1:11]:
         lines.append(" | ".join(row))
@@ -128,7 +128,7 @@ def parse_pdf(file_bytes: bytes) -> str:
             continue
 
     full_text = "\n\n".join(t.strip() for t in texts if t.strip())
-    return full_text or "No se pudo extraer texto del PDF."
+    return full_text or "Could not extract text from the PDF."
 
 
 def parse_docx(file_bytes: bytes) -> str:
@@ -137,7 +137,7 @@ def parse_docx(file_bytes: bytes) -> str:
 
     try:
         text = docx2txt.process(str(temp_path)) or ""
-        return text.strip() or "No se pudo extraer texto del DOCX."
+        return text.strip() or "Could not extract text from the DOCX."
     finally:
         if temp_path.exists():
             temp_path.unlink()
@@ -147,12 +147,12 @@ def parse_xlsx(file_bytes: bytes) -> str:
     wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
     lines: list[str] = []
 
-    lines.append("Libro Excel detectado.")
-    lines.append(f"Hojas: {', '.join(wb.sheetnames)}")
+    lines.append("Detected Excel workbook.")
+    lines.append(f"Sheets: {', '.join(wb.sheetnames)}")
 
     for sheet_name in wb.sheetnames[:5]:
         ws = wb[sheet_name]
-        lines.append(f"\nHoja: {sheet_name}")
+        lines.append(f"\nSheet: {sheet_name}")
 
         rows_preview = []
         for row in ws.iter_rows(min_row=1, max_row=10, values_only=True):
@@ -163,6 +163,6 @@ def parse_xlsx(file_bytes: bytes) -> str:
         if rows_preview:
             lines.extend(rows_preview)
         else:
-            lines.append("Sin contenido legible en las primeras filas.")
+            lines.append("No readable content found in the first rows.")
 
     return "\n".join(lines)

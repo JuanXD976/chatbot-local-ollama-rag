@@ -406,7 +406,7 @@ export default function HomePage() {
             <div className="hero-card">
               <div className="hero-top">
                 <div className="hero-left">
-                  <h1 className="page-title">🤖 Chatbot Local con Ollama - V7 Ultimate</h1>
+                  <h1 className="page-title">🤖 Chatbot Local con Ollama - V8 Ultimate</h1>
                   <p className="page-subtitle">
                     Chat local avanzado con RAG Pro, modos inteligentes, adjuntos, visión y automatización ligera.
                   </p>

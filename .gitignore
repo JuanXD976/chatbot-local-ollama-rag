@@ -32,6 +32,7 @@ env/
 # STREAMLIT / LEGACY CACHE
 # =========================
 .streamlit/
+legacy/*
 
 # Chroma / vectorstore / raw
 data/raw/
@@ -84,6 +85,7 @@ logs/
 # =========================
 dist/
 build/
+.runtime/
 
 # apuntes
 docs/
