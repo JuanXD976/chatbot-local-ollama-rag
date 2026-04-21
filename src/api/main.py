@@ -9,6 +9,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
+from src.agents.mode_router import detect_mode_and_output
 from src.api.dependencies import build_messages_for_model, build_services
 from src.api.schemas import (
     ChatRequest,
@@ -26,10 +27,11 @@ from src.config.settings import OLLAMA_CHAT_MODEL
 from src.llm.ollama_client import check_ollama_connection, clean_response
 from src.memory.memory_extractor import extract_memory_fact
 from src.memory.memory_service import append_message_to_memory, reset_persistent_memory
-from src.routing.router import detect_intent
+from src.rag.pipeline import answer_with_rag_stream, should_use_rag_for_query
+from src.routing.router import detect_intent, stream_user_message
 from src.security.prompt_guard import assess_user_prompt, get_blocked_response
 
-app = FastAPI(title="Chatbot Local API", version="6.0.0")
+app = FastAPI(title="Chatbot Local API", version="7.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -38,6 +40,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _inject_mode_system_message(
+    messages_for_model: list[dict[str, str]],
+    prompt: str,
+    mode: str | None,
+    output_format: str | None,
+) -> tuple[list[dict[str, str]], str, str]:
+    routing = detect_mode_and_output(prompt, mode, output_format)
+    enhanced = list(messages_for_model)
+    enhanced.insert(
+        1,
+        {
+            "role": "system",
+            "content": routing.system_instruction,
+        },
+    )
+    return enhanced, routing.mode, routing.output_format
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -81,22 +101,40 @@ def chat(payload: ChatRequest) -> ChatResponse:
             tools_used=[],
             sources=["security_layer"],
             attachments=[],
+            mode_used="security_block",
+            output_format_used=payload.output_format or "normal",
         )
 
     chat_service, session_service = build_services()
-
     session_id = chat_service.ensure_session(payload.session_id)
+
     messages_for_model = build_messages_for_model(
         session_service=session_service,
         session_id=session_id,
         current_prompt=payload.message,
     )
-
-    response = chat_service.process_message(
-        session_id=session_id,
-        user_message=payload.message,
-        messages_for_model=messages_for_model,
+    messages_for_model, mode_used, output_format_used = _inject_mode_system_message(
+        messages_for_model,
+        payload.message,
+        payload.mode,
+        payload.output_format,
     )
+
+    accumulated = ""
+    result = stream_user_message(payload.message, messages_for_model)
+
+    if "stream" in result:
+        for chunk in result["stream"]:
+            accumulated += chunk
+        answer = clean_response(accumulated)
+        detected_intent = result.get("detected_intent")
+        sources = result.get("sources", [])
+        tools_used = result.get("tools_used", [])
+    else:
+        answer = clean_response(result.get("answer", ""))
+        detected_intent = result.get("detected_intent")
+        sources = result.get("sources", [])
+        tools_used = result.get("tools_used", [])
 
     memory_fact = extract_memory_fact(payload.message)
     if memory_fact:
@@ -104,11 +142,13 @@ def chat(payload: ChatRequest) -> ChatResponse:
 
     return ChatResponse(
         session_id=session_id,
-        answer=clean_response(response.answer),
-        detected_intent=response.detected_intent,
-        tools_used=response.tools_used,
-        sources=response.sources,
+        answer=answer,
+        detected_intent=detected_intent,
+        tools_used=tools_used,
+        sources=sources,
         attachments=[],
+        mode_used=mode_used,
+        output_format_used=output_format_used,
     )
 
 
@@ -124,18 +164,24 @@ def chat_stream(payload: ChatRequest):
         headers = {
             "X-Session-Id": payload.session_id or "blocked_request",
             "X-Detected-Intent": "security_block",
-            "X-Model": OLLAMA_CHAT_MODEL,
-            "X-Sources": "security_layer",
+            "X-Mode-Used": "security_block",
+            "X-Output-Format": payload.output_format or "normal",
         }
         return StreamingResponse(blocked_stream(), media_type="text/plain", headers=headers)
 
     chat_service, session_service = build_services()
-
     session_id = chat_service.ensure_session(payload.session_id)
+
     messages_for_model = build_messages_for_model(
         session_service=session_service,
         session_id=session_id,
         current_prompt=payload.message,
+    )
+    messages_for_model, mode_used, output_format_used = _inject_mode_system_message(
+        messages_for_model,
+        payload.message,
+        payload.mode,
+        payload.output_format,
     )
 
     detected_intent = detect_intent(payload.message)
@@ -144,25 +190,39 @@ def chat_stream(payload: ChatRequest):
         accumulated = ""
         already_sent = ""
 
-        for event in chat_service.stream_message(
-            session_id=session_id,
-            user_message=payload.message,
-            messages_for_model=messages_for_model,
-        ):
-            chunk = event["content"]
-
-            if event["type"] == "final":
-                accumulated = chunk
-            else:
+        if should_use_rag_for_query(payload.message):
+            source_stream = answer_with_rag_stream(
+                payload.message,
+                requested_mode=payload.mode,
+                requested_output_format=payload.output_format,
+            )
+            for chunk in source_stream:
                 accumulated += chunk
+                cleaned_full = clean_response(accumulated)
+                if len(cleaned_full) > len(already_sent):
+                    delta = cleaned_full[len(already_sent):]
+                    already_sent = cleaned_full
+                    if delta:
+                        yield delta
+        else:
+            for event in chat_service.stream_message(
+                session_id=session_id,
+                user_message=payload.message,
+                messages_for_model=messages_for_model,
+            ):
+                chunk = event["content"]
 
-            cleaned_full = clean_response(accumulated)
+                if event["type"] == "final":
+                    accumulated = chunk
+                else:
+                    accumulated += chunk
 
-            if len(cleaned_full) > len(already_sent):
-                delta = cleaned_full[len(already_sent):]
-                already_sent = cleaned_full
-                if delta:
-                    yield delta
+                cleaned_full = clean_response(accumulated)
+                if len(cleaned_full) > len(already_sent):
+                    delta = cleaned_full[len(already_sent):]
+                    already_sent = cleaned_full
+                    if delta:
+                        yield delta
 
         memory_fact = extract_memory_fact(payload.message)
         if memory_fact:
@@ -171,7 +231,8 @@ def chat_stream(payload: ChatRequest):
     headers = {
         "X-Session-Id": session_id,
         "X-Detected-Intent": detected_intent,
-        "X-Model": OLLAMA_CHAT_MODEL,
+        "X-Mode-Used": mode_used,
+        "X-Output-Format": output_format_used,
     }
     return StreamingResponse(generate(), media_type="text/plain", headers=headers)
 
@@ -180,6 +241,8 @@ def chat_stream(payload: ChatRequest):
 async def chat_with_attachments(
     message: str = Form(...),
     session_id: str | None = Form(default=None),
+    mode: str | None = Form(default="auto"),
+    output_format: str | None = Form(default="normal"),
     files: List[UploadFile] = File(default=[]),
 ):
     guard = assess_user_prompt(message)
@@ -192,8 +255,9 @@ async def chat_with_attachments(
         headers = {
             "X-Session-Id": session_id or "blocked_request",
             "X-Detected-Intent": "security_block",
-            "X-Model": OLLAMA_CHAT_MODEL,
-            "X-Attachments": "",
+            "X-Mode-Used": "security_block",
+            "X-Output-Format": output_format or "normal",
+            "X-Attachment-Count": "0",
         }
         return StreamingResponse(blocked_stream(), media_type="text/plain", headers=headers)
 
@@ -214,6 +278,8 @@ async def chat_with_attachments(
         file_payloads.append((file.filename, content))
         attachment_names.append(file.filename)
 
+    routing = detect_mode_and_output(message, mode, output_format)
+
     def generate():
         accumulated = ""
         already_sent = ""
@@ -222,6 +288,8 @@ async def chat_with_attachments(
             user_prompt=message,
             files=file_payloads,
             messages_for_model=messages_for_model,
+            requested_mode=mode,
+            requested_output_format=output_format,
         ):
             accumulated += chunk
             cleaned_full = clean_response(accumulated)
@@ -234,12 +302,10 @@ async def chat_with_attachments(
 
         final_answer = clean_response(accumulated)
 
-        # ✅ Guardar memoria si aplica
         memory_fact = extract_memory_fact(message)
         if memory_fact:
             append_message_to_memory("user", memory_fact)
 
-        # ✅ Persistir conversación en la sesión
         session_service.append_message(
             session_id=ensured_session_id,
             role="user",
@@ -254,10 +320,12 @@ async def chat_with_attachments(
     headers = {
         "X-Session-Id": ensured_session_id,
         "X-Detected-Intent": "attachments",
-        "X-Model": OLLAMA_CHAT_MODEL,
+        "X-Mode-Used": routing.mode,
+        "X-Output-Format": routing.output_format,
         "X-Attachment-Count": str(len(attachment_names)),
     }
     return StreamingResponse(generate(), media_type="text/plain", headers=headers)
+
 
 @app.post("/exports/response")
 async def export_response(

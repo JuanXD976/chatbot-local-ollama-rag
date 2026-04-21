@@ -30,6 +30,8 @@ type ChatMessage = {
   timestamp?: string;
   sources?: string[];
   attachments?: string[];
+  modeUsed?: string | null;
+  outputFormatUsed?: string | null;
 };
 
 type ThemeMode = "light" | "dark" | "auto";
@@ -38,6 +40,8 @@ type StreamResult = {
   sessionId: string;
   finalText: string;
   detectedIntent: string | null;
+  modeUsed?: string | null;
+  outputFormatUsed?: string | null;
   sources?: string[];
   attachments: string[];
 };
@@ -58,6 +62,7 @@ export default function HomePage() {
 
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   async function refreshHealth() {
     const data = await healthCheck();
@@ -137,9 +142,7 @@ export default function HomePage() {
       if (okResults.length > 0 && errorResults.length === 0) {
         setInfoMessage(`Se subieron e indexaron ${okResults.length} documento(s) correctamente.`);
       } else if (okResults.length > 0 && errorResults.length > 0) {
-        setInfoMessage(
-          `Se subieron ${okResults.length} documento(s) correctamente y ${errorResults.length} fallaron.`
-        );
+        setInfoMessage(`Se subieron ${okResults.length} documento(s) correctamente y ${errorResults.length} fallaron.`);
       } else if (errorResults.length > 0) {
         setInfoMessage(`No se pudo subir ningún documento. Primer error: ${errorResults[0].error}`);
       }
@@ -178,6 +181,15 @@ export default function HomePage() {
     setInfoMessage("Memoria persistente borrada correctamente.");
   }
 
+  function handleStopGeneration() {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setPending(false);
+      setInfoMessage("Generación detenida por el usuario.");
+    }
+  }
+
   async function handleSend() {
     if ((!input.trim() && selectedFiles.length === 0) || pending) return;
 
@@ -214,37 +226,55 @@ export default function HomePage() {
         timestamp: new Date().toISOString(),
         sources: [],
         attachments: [],
+        modeUsed: null,
+        outputFormatUsed: null,
       },
     ]);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
       let result: StreamResult;
 
       if (currentFiles.length > 0) {
-        result = await chatWithAttachments(userMessage, currentFiles, sessionId, (chunk) => {
-          setMessages((prev) => {
-            const next = [...prev];
-            const lastIndex = next.length - 1;
-            next[lastIndex] = {
-              ...next[lastIndex],
-              content: next[lastIndex].content + chunk,
-            };
-            return next;
-          });
-        });
+        result = await chatWithAttachments(
+          userMessage,
+          currentFiles,
+          sessionId,
+          (chunk) => {
+            setMessages((prev) => {
+              const next = [...prev];
+              const lastIndex = next.length - 1;
+              next[lastIndex] = {
+                ...next[lastIndex],
+                content: next[lastIndex].content + chunk,
+              };
+              return next;
+            });
+          },
+          controller.signal
+        );
       } else {
-        result = await chatStream(userMessage, sessionId, (chunk) => {
-          setMessages((prev) => {
-            const next = [...prev];
-            const lastIndex = next.length - 1;
-            next[lastIndex] = {
-              ...next[lastIndex],
-              content: next[lastIndex].content + chunk,
-            };
-            return next;
-          });
-        });
+        result = await chatStream(
+          userMessage,
+          sessionId,
+          (chunk) => {
+            setMessages((prev) => {
+              const next = [...prev];
+              const lastIndex = next.length - 1;
+              next[lastIndex] = {
+                ...next[lastIndex],
+                content: next[lastIndex].content + chunk,
+              };
+              return next;
+            });
+          },
+          controller.signal
+        );
       }
+
+      abortControllerRef.current = null;
 
       if (result.sessionId && result.sessionId !== activeSessionId) {
         setActiveSessionId(result.sessionId);
@@ -260,6 +290,8 @@ export default function HomePage() {
           ...next[lastIndex],
           sources: finalSources,
           attachments: finalAttachments,
+          modeUsed: result.modeUsed ?? null,
+          outputFormatUsed: result.outputFormatUsed ?? null,
         };
         return next;
       });
@@ -270,36 +302,52 @@ export default function HomePage() {
         setActiveSessionId(result.sessionId);
       }
     } catch (error: any) {
-      setMessages((prev) => {
-        const next = [...prev];
-        const lastIndex = next.length - 1;
-        next[lastIndex] = {
-          role: "assistant",
-          content: error.message || "Error al generar la respuesta.",
-          timestamp: new Date().toISOString(),
-          sources: [],
-          attachments: [],
-        };
-        return next;
-      });
+      abortControllerRef.current = null;
+
+      if (error?.name === "AbortError") {
+        setMessages((prev) => {
+          const next = [...prev];
+          const lastIndex = next.length - 1;
+          next[lastIndex] = {
+            ...next[lastIndex],
+            content: `${next[lastIndex].content}\n\n[Generación detenida]`.trim(),
+          };
+          return next;
+        });
+      } else {
+        setMessages((prev) => {
+          const next = [...prev];
+          const lastIndex = next.length - 1;
+          next[lastIndex] = {
+            role: "assistant",
+            content: error.message || "Error al generar la respuesta.",
+            timestamp: new Date().toISOString(),
+            sources: [],
+            attachments: [],
+            modeUsed: null,
+            outputFormatUsed: null,
+          };
+          return next;
+        });
+      }
     } finally {
       setPending(false);
     }
   }
 
-  function applyTheme(mode: ThemeMode) {
-    setThemeMode(mode);
-    localStorage.setItem("chatbot_theme_mode", mode);
+  function applyTheme(modeValue: ThemeMode) {
+    setThemeMode(modeValue);
+    localStorage.setItem("chatbot_theme_mode", modeValue);
 
     const html = document.documentElement;
 
-    if (mode === "auto") {
+    if (modeValue === "auto") {
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       html.setAttribute("data-theme", prefersDark ? "dark" : "light");
       return;
     }
 
-    html.setAttribute("data-theme", mode);
+    html.setAttribute("data-theme", modeValue);
   }
 
   function handleChatScroll() {
@@ -358,9 +406,9 @@ export default function HomePage() {
             <div className="hero-card">
               <div className="hero-top">
                 <div className="hero-left">
-                  <h1 className="page-title">🤖 Chatbot Local con Ollama - V6.0</h1>
+                  <h1 className="page-title">🤖 Chatbot Local con Ollama - V7 Ultimate</h1>
                   <p className="page-subtitle">
-                    Chat multimodal local con adjuntos, visión, exportación y administración avanzada.
+                    Chat local avanzado con RAG Pro, modos inteligentes, adjuntos, visión y automatización ligera.
                   </p>
                   <p className="small-muted" style={{ marginTop: 8 }}>
                     Modelo local actual: {health?.model ?? "desconocido"}
@@ -371,11 +419,7 @@ export default function HomePage() {
                   <div className="theme-pill">
                     Tema: {themeMode === "light" ? "Claro" : themeMode === "dark" ? "Oscuro" : "Auto"}
                   </div>
-                  <button
-                    className="btn btn-icon"
-                    onClick={() => setIsAdminOpen(true)}
-                    title="Abrir administración"
-                  >
+                  <button className="btn btn-icon" onClick={() => setIsAdminOpen(true)} title="Abrir administración">
                     ⋯
                   </button>
                 </div>
@@ -406,6 +450,8 @@ export default function HomePage() {
                     pending={pending && index === messages.length - 1}
                     sources={message.sources}
                     attachments={message.attachments}
+                    modeUsed={message.modeUsed}
+                    outputFormatUsed={message.outputFormatUsed}
                   />
                 ))}
               </div>
@@ -419,6 +465,7 @@ export default function HomePage() {
                 onChange={setInput}
                 onFilesChange={setSelectedFiles}
                 onSend={handleSend}
+                onStop={handleStopGeneration}
               />
             </div>
           </div>

@@ -78,10 +78,7 @@ export async function listDocuments() {
 
 export async function uploadDocuments(files: File[]): Promise<UploadBatchResponse> {
   const formData = new FormData();
-
-  files.forEach((file) => {
-    formData.append("files", file);
-  });
+  files.forEach((file) => formData.append("files", file));
 
   const res = await fetch(`${API_URL}/documents/upload`, {
     method: "POST",
@@ -129,11 +126,14 @@ export async function resetMemory() {
 export async function chatStream(
   message: string,
   sessionId?: string | null,
-  onChunk?: (chunk: string) => void
+  onChunk?: (chunk: string) => void,
+  signal?: AbortSignal
 ): Promise<{
   sessionId: string;
   finalText: string;
   detectedIntent: string | null;
+  modeUsed: string | null;
+  outputFormatUsed: string | null;
   sources: string[];
   attachments: string[];
 }> {
@@ -144,6 +144,7 @@ export async function chatStream(
       message,
       session_id: sessionId,
     }),
+    signal,
   });
 
   if (!res.ok || !res.body) {
@@ -152,10 +153,8 @@ export async function chatStream(
 
   const returnedSessionId = res.headers.get("X-Session-Id") || "";
   const detectedIntent = res.headers.get("X-Detected-Intent");
-  const rawSources = res.headers.get("X-Sources") || "";
-  const rawAttachments = res.headers.get("X-Attachments") || "";
-  const sources = rawSources ? rawSources.split(",").map((s) => s.trim()).filter(Boolean) : [];
-  const attachments = rawAttachments ? rawAttachments.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  const modeUsed = res.headers.get("X-Mode-Used");
+  const outputFormatUsed = res.headers.get("X-Output-Format");
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder("utf-8");
@@ -175,8 +174,10 @@ export async function chatStream(
     sessionId: returnedSessionId,
     finalText,
     detectedIntent,
-    sources,
-    attachments,
+    modeUsed,
+    outputFormatUsed,
+    sources: [],
+    attachments: [],
   };
 }
 
@@ -184,26 +185,26 @@ export async function chatWithAttachments(
   message: string,
   files: File[],
   sessionId?: string | null,
-  onChunk?: (chunk: string) => void
+  onChunk?: (chunk: string) => void,
+  signal?: AbortSignal
 ): Promise<{
   sessionId: string;
   finalText: string;
   detectedIntent: string | null;
+  modeUsed: string | null;
+  outputFormatUsed: string | null;
   attachments: string[];
 }> {
   const formData = new FormData();
   formData.append("message", message);
-  if (sessionId) {
-    formData.append("session_id", sessionId);
-  }
+  if (sessionId) formData.append("session_id", sessionId);
 
-  files.forEach((file) => {
-    formData.append("files", file);
-  });
+  files.forEach((file) => formData.append("files", file));
 
   const res = await fetch(`${API_URL}/chat/attachments`, {
     method: "POST",
     body: formData,
+    signal,
   });
 
   if (!res.ok || !res.body) {
@@ -212,6 +213,8 @@ export async function chatWithAttachments(
 
   const returnedSessionId = res.headers.get("X-Session-Id") || "";
   const detectedIntent = res.headers.get("X-Detected-Intent");
+  const modeUsed = res.headers.get("X-Mode-Used");
+  const outputFormatUsed = res.headers.get("X-Output-Format");
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder("utf-8");
@@ -231,34 +234,8 @@ export async function chatWithAttachments(
     sessionId: returnedSessionId,
     finalText,
     detectedIntent,
+    modeUsed,
+    outputFormatUsed,
     attachments: files.map((file) => file.name),
   };
-}
-
-export async function exportResponse(content: string, exportFormat: "txt" | "md" | "docx" | "xlsx") {
-  const formData = new FormData();
-  formData.append("content", content);
-  formData.append("export_format", exportFormat);
-
-  const res = await fetch(`${API_URL}/exports/response`, {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!res.ok) {
-    throw new Error("No se pudo exportar la respuesta.");
-  }
-
-  const blob = await res.blob();
-  const url = window.URL.createObjectURL(blob);
-
-  const extension = exportFormat;
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `respuesta.${extension}`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-
-  window.URL.revokeObjectURL(url);
 }

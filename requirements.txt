@@ -25,3 +25,7 @@ python-docx
 openpyxl
 pandas
 pillow
+rank-bm25
+rapidfuzz
+pytest
+pytest-cov

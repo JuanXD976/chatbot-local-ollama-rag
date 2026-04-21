@@ -1,68 +1,69 @@
-# 🤖 Chatbot Local con Ollama — V5.0
+# 🤖 Chatbot Local con Ollama — V7 Ultimate
 
-Versión V5.0 del proyecto **Chatbot Local con Ollama**, centrada en mejorar la **inteligencia del sistema**, la **seguridad**, el **uso de RAG** y la **orquestación entre memoria, herramientas y documentos**.
+Versión **V7 Ultimate** del proyecto **Chatbot Local con Ollama**, enfocada en ofrecer una experiencia completa de chat local con IA, integrando:
 
-Esta versión consolida una arquitectura local moderna con:
-
-- **Frontend** en Next.js + React + TypeScript
-- **Backend** en FastAPI
-- **LLM local** con Ollama
-- **RAG local** con ChromaDB
-- **Memoria persistente**
-- **Streaming**
-- **Capa básica de seguridad** contra prompt injection
+- 🧠 IA local (Ollama)
+- 📎 Soporte de archivos (PDF, CSV, imágenes)
+- 📊 Generación estructurada (tablas, código, análisis)
+- ⚡ Streaming en tiempo real
+- 💾 Sesiones persistentes
+- 🧩 Arquitectura modular escalable
+- 🎯 UX avanzada tipo ChatGPT
 
 ---
 
-# 🚀 Novedades principales de la V5.0
+# 🚀 Características principales
 
-## Inteligencia del sistema
-- Detección de intención más robusta
-- Uso automático de RAG cuando la consulta lo requiere
-- Mejor separación entre:
-  - memoria del usuario
-  - contexto documental
-  - tools
-  - generación final del modelo
+## 🧠 Inteligencia del sistema
+- Respuestas dinámicas según el contexto
+- Detección automática de intención
+- Generación estructurada:
+  - código
+  - tablas
+  - análisis
+- Control automático del formato de salida
 
-## Seguridad
-- Bloqueo de peticiones de prompt injection
-- Protección frente a intentos de revelar:
-  - system prompt
-  - instrucciones internas
-  - contexto oculto
-  - memoria completa
-- Sanitización del contexto documental antes de pasarlo al modelo
-- Limpieza de respuesta final para evitar tokens o restos internos
+## 📎 Soporte de archivos
+- PDF → extracción de texto
+- CSV → análisis automático
+- Imágenes → análisis visual (con fallback)
+- Uso del contenido como contexto real en la respuesta
 
-## RAG mejorado
-- Respuestas documentales más limpias
-- Fuentes consultadas al final de la respuesta
-- Heurísticas para no forzar RAG cuando no hay contexto útil
+## ⚡ Streaming
+- Respuesta en tiempo real
+- Mejora de UX
+- Posibilidad de interrumpir la generación (STOP)
 
-## Memoria
-- Uso más controlado de la memoria persistente
-- Respuestas personales más directas
-- Menor mezcla de datos personales en respuestas no relacionadas
+## 💬 Sesiones
+- Historial persistente
+- Cambio entre conversaciones
+- Contexto mantenido por sesión
+
+## 💻 UX avanzada
+- Render profesional de código
+- Tablas limpias y legibles
+- Botón copiar contextual (código/tablas)
+- Input con auto-resize
+- Sidebar de sesiones
+- UI moderna y clara
 
 ---
 
-# 🧱 Arquitectura general
+# 🧱 Arquitectura
 
 ```text
 Usuario
    ↓
-Next.js Frontend
+Frontend (Next.js)
    ↓
-FastAPI Backend
+Backend (FastAPI)
    ↓
-Core IA local
-   ├── Router de intenciones
-   ├── Prompt Guard (seguridad)
-   ├── Memoria persistente
-   ├── RAG / recuperación documental
-   ├── Tools
-   └── LLM local con Ollama
+Core IA
+   ├── Gestión de sesiones
+   ├── Procesado de archivos
+   ├── Inyección de contexto
+   ├── Control de formato
+   └── LLM local (Ollama)
 ```
 ---
 ---
@@ -103,7 +104,7 @@ V1/
 │   │    ├── context_sanitizer.py
 │   │    └── response_guard.py
 │   ├── tools/
-│   └── utils/
+│   └── agents/
 ├── .env
 ├── .gitignore
 ├── README.md
@@ -306,32 +307,18 @@ Mi nombre es Juan
 ¿Cuál es mi nombre?
 ```
 ---
-# ✅ Estado actual de la V5.0
-La V5.0 deja resueltos estos bloques:
-
-- arquitectura local moderna
-- frontend modular
-- sesiones persistentes
-- memoria persistente funcional
-- streaming operativo
-- RAG local con fuentes
-- subida múltiple de documentos
-- drag & drop documental
-- panel de administración
-- tema visual
-- capa de seguridad contra prompt injection
-- sanitización de contexto documental
-- limpieza de respuestas internas del modelo
 
 # 🔮 Roadmap futuro
 
-El siguiente paso natural del proyecto sería una versión posterior centrada en capacidades más avanzadas, por ejemplo:
-
-- [ ] subir imágenes al chat
-- [ ] analizar imágenes y archivos directamente en la conversación
-- [ ] vista previa de adjuntos
-- [ ] contexto temporal por archivo
-- [ ] integración del análisis visual con el flujo conversacional
+## V7.1
+- 🌍 Soporte multiidioma automático
+- 🧹 Eliminación de hardcode en español
+- ⚙️ Configuración centralizada
+- 🧠 RAG avanzado
+- embeddings persistentes
+- reranking
+- 🤖 Agentes inteligentes
+- workflows automáticos
 
 ---
 

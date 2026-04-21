@@ -6,6 +6,8 @@ from pydantic import BaseModel
 class ChatRequest(BaseModel):
     message: str
     session_id: str | None = None
+    mode: str | None = "auto"
+    output_format: str | None = "normal"
 
 
 class ChatResponse(BaseModel):
@@ -15,6 +17,8 @@ class ChatResponse(BaseModel):
     tools_used: list[str] = []
     sources: list[str] = []
     attachments: list[str] = []
+    mode_used: str | None = None
+    output_format_used: str | None = None
 
 
 class SessionMessage(BaseModel):

@@ -24,13 +24,23 @@ def sanitize_final_response(text: str) -> str:
     if not text:
         return ""
 
-    cleaned = text
+    cleaned = text.strip()
 
     cleaned = re.sub(r"<\|[^>]+\|>", "", cleaned)
     cleaned = re.sub(r"<[a-zA-Z0-9_\-/| ]+>", "", cleaned)
     cleaned = re.sub(r"\b(system|assistant|user|chatbot)\s*:", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\b(system|assistant|user|chatbot)\s*>", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\b(system_user|assistant_user|systeme_user)\b", "", cleaned, flags=re.IGNORECASE)
+    
+    # Quitar prefijos técnicos no deseados al inicio
+    cleaned = re.sub(r"^\s*Formato:\s*(tabla|puntos|codigo|normal)\s*\n?", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"^\s*Modo:\s*(auto|analista|programador|resumidor)\s*\n?", "", cleaned, flags=re.IGNORECASE)
+
+    # Quitar tokens raros residuales
+    cleaned = re.sub(r"<\|.*?\|>", "", cleaned)
+    cleaned = re.sub(r"<im_.*?>", "", cleaned)
+    cleaned = re.sub(r"<file_separator>", "", cleaned, flags=re.IGNORECASE)
+    
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
     cleaned = re.sub(r"\b(Tienes nombre.*)\b", "", cleaned)

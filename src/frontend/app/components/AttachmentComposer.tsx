@@ -9,6 +9,7 @@ type AttachmentComposerProps = {
   onChange: (value: string) => void;
   onFilesChange: (files: File[]) => void;
   onSend: () => void;
+  onStop?: () => void;
 };
 
 export default function AttachmentComposer({
@@ -18,6 +19,7 @@ export default function AttachmentComposer({
   onChange,
   onFilesChange,
   onSend,
+  onStop,
 }: AttachmentComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -43,7 +45,14 @@ export default function AttachmentComposer({
                 <strong>{file.name}</strong>
                 <div className="small-muted">{(file.size / 1024).toFixed(2)} KB</div>
               </div>
-              <button className="mini-remove-btn" onClick={() => removeFile(index)}>×</button>
+              <button
+                type="button"
+                className="mini-remove-btn"
+                onClick={() => removeFile(index)}
+                disabled={pending}
+              >
+                ×
+              </button>
             </div>
           ))}
         </div>
@@ -68,6 +77,7 @@ export default function AttachmentComposer({
           onChange={(e) => {
             const files = Array.from(e.target.files || []);
             onFilesChange([...selectedFiles, ...files]);
+            e.currentTarget.value = "";
           }}
         />
 
@@ -80,20 +90,35 @@ export default function AttachmentComposer({
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              onSend();
+              if (!pending) {
+                onSend();
+              }
             }
           }}
           rows={1}
+          disabled={false}
         />
 
-        <button
-          className="send-btn"
-          onClick={onSend}
-          disabled={pending || (!value.trim() && selectedFiles.length === 0)}
-          title={pending ? "Generando..." : "Enviar"}
-        >
-          ↑
-        </button>
+        {pending ? (
+          <button
+            type="button"
+            className="send-btn stop-btn"
+            onClick={onStop}
+            title="Parar generación"
+          >
+            ■
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="send-btn"
+            onClick={onSend}
+            disabled={!value.trim() && selectedFiles.length === 0}
+            title="Enviar"
+          >
+            ↑
+          </button>
+        )}
       </div>
     </div>
   );

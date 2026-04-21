@@ -8,60 +8,70 @@ Motivo de su creación:
 
 from __future__ import annotations
 
-from pathlib import Path
+import re
+from dataclasses import dataclass
 
-from langchain_core.documents import Document
-
-from src.config.settings import RAG_TOP_K
-from src.rag.vectorstore import get_vectorstore
+from src.config.settings import RAG_FINAL_K, RAG_MIN_CHARS, RAG_TOP_K
+from src.rag.vectorstore import count_indexed_chunks, get_vectorstore
 
 
-def get_retriever():
-    """
-    Devuelve un retriever de Chroma configurado con el número de resultados deseado.
-    """
+@dataclass
+class RetrievedChunk:
+    text: str
+    source_name: str
+    score: float
+
+
+def _tokenize(text: str) -> list[str]:
+    return re.findall(r"[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9_]+", (text or "").lower())
+
+
+def _keyword_score(query: str, text: str) -> float:
+    q_tokens = set(_tokenize(query))
+    d_tokens = _tokenize(text)
+
+    if not q_tokens or not d_tokens:
+        return 0.0
+
+    overlap = sum(1 for token in d_tokens if token in q_tokens)
+    uniq_overlap = len(q_tokens.intersection(set(d_tokens)))
+    density = overlap / max(len(d_tokens), 1)
+
+    return (uniq_overlap * 2.0) + (overlap * 0.12) + (density * 20.0)
+
+
+def retrieve_hybrid_chunks(query: str) -> list[RetrievedChunk]:
+    if count_indexed_chunks() == 0:
+        return []
+
     vectorstore = get_vectorstore()
+    docs = vectorstore.similarity_search_with_score(query, k=RAG_TOP_K)
 
-    return vectorstore.as_retriever(
-        search_kwargs={"k": RAG_TOP_K}
-    )
+    ranked: list[RetrievedChunk] = []
 
+    for item in docs:
+        if not isinstance(item, tuple) or len(item) != 2:
+            continue
 
-def retrieve_documents(query: str) -> list[Document]:
-    """
-    Recupera los documentos más relevantes para una consulta.
-    """
-    retriever = get_retriever()
-    return retriever.invoke(query)
+        doc, vector_score = item
+        content = (doc.page_content or "").strip()
 
+        if len(content) < RAG_MIN_CHARS:
+            continue
 
-def _clean_source_name(source: str) -> str:
-    """
-    Limpia la ruta del archivo para mostrar solo un nombre legible.
-    """
-    if not source:
-        return "documento_local"
+        source_name = doc.metadata.get("source_name", "documento_desconocido")
+        normalized_vector = 1 / (1 + float(vector_score)) if vector_score is not None else 0.0
+        keyword = _keyword_score(query, content)
 
-    return Path(source).name
+        final_score = (normalized_vector * 5.0) + keyword
 
-
-def format_retrieved_context(documents: list[Document]) -> str:
-    """
-    Convierte los documentos recuperados en un bloque de contexto más limpio
-    y menos técnico para el LLM.
-    """
-    if not documents:
-        return ""
-
-    formatted_chunks = []
-
-    for index, doc in enumerate(documents, start=1):
-        raw_source = doc.metadata.get("source", "")
-        source_name = _clean_source_name(raw_source)
-        content = doc.page_content.strip()
-
-        formatted_chunks.append(
-            f"[Documento {index} | Archivo: {source_name}]\n{content}"
+        ranked.append(
+            RetrievedChunk(
+                text=content,
+                source_name=source_name,
+                score=final_score,
+            )
         )
 
-    return "\n\n".join(formatted_chunks)
+    ranked.sort(key=lambda x: x.score, reverse=True)
+    return ranked[:RAG_FINAL_K]

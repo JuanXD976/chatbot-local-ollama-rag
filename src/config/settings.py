@@ -27,12 +27,11 @@ RAW_DIR.mkdir(parents=True, exist_ok=True)
 VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
 MEMORY_DIR.mkdir(parents=True, exist_ok=True)
 
-APP_TITLE = "Chatbot Local con Ollama - V6.0"
+APP_TITLE = "Chatbot Local con Ollama - V7 Ultimate"
 APP_DESCRIPTION = (
-    "Chat multimodal local con Ollama, FastAPI, Next.js, memoria, RAG, "
-    "adjuntos en conversación y exportación de respuestas."
+    "Chatbot local multimodal con RAG Pro, modos inteligentes, adjuntos, visión y exportación."
 )
-MAX_MESSAGES = int(os.getenv("MAX_MESSAGES", "12"))
+MAX_MESSAGES = int(os.getenv("MAX_MESSAGES", "14"))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 
@@ -85,7 +84,9 @@ cuando haces una consulta, el retriever recupera los 4 chunks más relevantes
 
 RAG_CHUNK_SIZE = 800
 RAG_CHUNK_OVERLAP = 150
-RAG_TOP_K = 4
+RAG_TOP_K = int(os.getenv("RAG_TOP_K", "8"))
+RAG_FINAL_K = int(os.getenv("RAG_FINAL_K", "4"))
+RAG_MIN_CHARS = int(os.getenv("RAG_MIN_CHARS", "80"))
 RAG_SUPPORTED_EXTENSIONS = (".txt", ".md", ".pdf", ".docx")
 
 # =========================
