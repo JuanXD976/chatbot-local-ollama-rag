@@ -35,15 +35,28 @@ from src.tools.tools import (
     get_weather,
     search_web,
 )
+from src.utils.language import detect_language
 
 logger = logging.getLogger(__name__)
+
+
+def _memory_prefix(language: str) -> str:
+    if language == "es":
+        return "Según lo que me has comentado antes: "
+    return "Based on what you told me earlier: "
 
 
 def detect_intent(prompt: str) -> str:
     prompt_lower = prompt.lower()
 
-    weather_keywords = ["tiempo", "clima", "temperatura", "lluvia", "sol", "viento"]
-    datetime_keywords = ["hora", "fecha", "qué día es", "que dia es", "qué hora es", "que hora es"]
+    weather_keywords = [
+        "tiempo", "clima", "temperatura", "lluvia", "sol", "viento",
+        "weather", "temperature", "rain", "wind", "forecast",
+    ]
+    datetime_keywords = [
+        "hora", "fecha", "qué día es", "que dia es", "qué hora es", "que hora es",
+        "time", "date", "what time is it", "what day is it",
+    ]
     web_keywords = [
         "busca en internet",
         "búscame",
@@ -54,8 +67,16 @@ def detect_intent(prompt: str) -> str:
         "que ha pasado",
         "buscar en internet",
         "en internet",
+        "search the web",
+        "search online",
+        "latest news",
+        "what happened",
+        "on the internet",
     ]
-    calc_keywords = ["calcula", "cuánto es", "cuanto es", "+", "-", "*", "/", "sqrt", "log"]
+    calc_keywords = [
+        "calcula", "cuánto es", "cuanto es", "+", "-", "*", "/", "sqrt", "log",
+        "calculate", "how much is",
+    ]
 
     if any(keyword in prompt_lower for keyword in weather_keywords):
         return "weather"
@@ -76,7 +97,7 @@ def detect_intent(prompt: str) -> str:
 
 
 def extract_city(prompt: str) -> str:
-    match = re.search(r"\ben\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ\s\-]+)", prompt, re.IGNORECASE)
+    match = re.search(r"\b(?:en|in)\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ\s\-]+)", prompt, re.IGNORECASE)
     if match:
         return match.group(1).strip(" ?¿!.,")
     return "Madrid"
@@ -87,6 +108,8 @@ def extract_expression(prompt: str) -> str:
     expression = expression.replace("cuánto es", "")
     expression = expression.replace("cuanto es", "")
     expression = expression.replace("calcula", "")
+    expression = expression.replace("how much is", "")
+    expression = expression.replace("calculate", "")
     expression = expression.strip()
     expression = expression.replace("sqtr", "sqrt")
     return expression
@@ -96,11 +119,11 @@ def detect_weather_scope(prompt: str) -> str:
     prompt_lower = prompt.lower()
 
     weather_scope_map = {
-        "next_week": ["próxima semana", "proxima semana", "siguiente semana"],
-        "next_weekend": ["próximo fin de semana", "proximo fin de semana", "siguiente fin de semana"],
-        "weekly": ["esta semana", "toda la semana"],
-        "tomorrow": ["mañana"],
-        "today": ["hoy"],
+        "next_week": ["próxima semana", "proxima semana", "siguiente semana", "next week"],
+        "next_weekend": ["próximo fin de semana", "proximo fin de semana", "siguiente fin de semana", "next weekend"],
+        "weekly": ["esta semana", "toda la semana", "this week"],
+        "tomorrow": ["mañana", "tomorrow"],
+        "today": ["hoy", "today"],
     }
 
     for scope, keywords in weather_scope_map.items():
@@ -112,7 +135,7 @@ def detect_weather_scope(prompt: str) -> str:
 
 def extract_datetime_location(prompt: str) -> str | None:
     match = re.search(
-        r"\ben\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ\s,\-]+)",
+        r"\b(?:en|in)\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ\s,\-]+)",
         prompt,
         re.IGNORECASE,
     )
@@ -127,6 +150,8 @@ def extract_datetime_location(prompt: str) -> str | None:
 
 
 def execute_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
+    language = detect_language(prompt)
+
     guard = assess_user_prompt(prompt)
     if guard.blocked:
         return {
@@ -139,14 +164,14 @@ def execute_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
     memory_answer = answer_memory_question(prompt)
     if memory_answer is not None:
         return {
-            "answer": f"Según lo que me has comentado antes: {memory_answer}",
+            "answer": f"{_memory_prefix(language)}{memory_answer}",
             "detected_intent": "memory",
             "tools_used": ["memory"],
             "sources": ["persistent_memory"],
         }
 
     intent = detect_intent(prompt)
-    logger.info("Intent detectada: %s", intent)
+    logger.info("Detected intent: %s", intent)
 
     if intent == "datetime":
         location = extract_datetime_location(prompt)
@@ -241,6 +266,8 @@ def execute_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
 
 
 def stream_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
+    language = detect_language(prompt)
+
     guard = assess_user_prompt(prompt)
     if guard.blocked:
         return {
@@ -253,14 +280,14 @@ def stream_user_message(prompt: str, messages: list[dict[str, str]]) -> dict:
     memory_answer = answer_memory_question(prompt)
     if memory_answer is not None:
         return {
-            "answer": f"Según lo que me has comentado antes: {memory_answer}",
+            "answer": f"{_memory_prefix(language)}{memory_answer}",
             "detected_intent": "memory",
             "tools_used": ["memory"],
             "sources": ["persistent_memory"],
         }
 
     intent = detect_intent(prompt)
-    logger.info("Intent detectada (stream): %s", intent)
+    logger.info("Detected intent (stream): %s", intent)
 
     if intent == "datetime":
         location = extract_datetime_location(prompt)

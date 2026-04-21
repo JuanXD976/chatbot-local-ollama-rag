@@ -1,11 +1,14 @@
-# 🤖 Chatbot Local con Ollama — V7 Ultimate
+# 🤖 Chatbot Local con Ollama — V8 Final
 
-Versión **V7 Ultimate** del proyecto **Chatbot Local con Ollama**, enfocada en ofrecer una experiencia completa de chat local con IA, integrando:
+Versión **V8 Final** del proyecto **Chatbot Local con Ollama**, una aplicación local de inteligencia artificial con arquitectura modular, soporte multimodal, RAG persistente y experiencia de uso tipo chat profesional.
 
-- 🧠 IA local (Ollama)
-- 📎 Soporte de archivos (PDF, CSV, imágenes)
-- 📊 Generación estructurada (tablas, código, análisis)
-- ⚡ Streaming en tiempo real
+Esta versión integra:
+
+- 🧠 IA local con **Ollama**
+- 📎 Soporte de adjuntos (**PDF, CSV, DOCX, XLSX, TXT, imágenes**)
+- 🌍 Respuesta automática en el **idioma del usuario**
+- 📚 **RAG persistente** con recuperación híbrida y reranking
+- ⚡ Streaming en tiempo real + botón **STOP**
 - 💾 Sesiones persistentes
 - 🧩 Arquitectura modular escalable
 - 🎯 UX avanzada tipo ChatGPT
@@ -15,19 +18,39 @@ Versión **V7 Ultimate** del proyecto **Chatbot Local con Ollama**, enfocada en 
 # 🚀 Características principales
 
 ## 🧠 Inteligencia del sistema
-- Respuestas dinámicas según el contexto
 - Detección automática de intención
+- Selección automática de modo de respuesta
 - Generación estructurada:
   - código
   - tablas
   - análisis
+  - resúmenes
 - Control automático del formato de salida
+- Respuesta híbrida:
+  - usa RAG si aporta valor
+  - responde con conocimiento general si el contexto documental no cubre la pregunta
+
+## 🌍 Multiidioma automático
+- Detecta automáticamente el idioma principal del usuario
+- Responde en ese mismo idioma
+- Evita que el idioma del documento fuerce el idioma de salida
 
 ## 📎 Soporte de archivos
 - PDF → extracción de texto
-- CSV → análisis automático
-- Imágenes → análisis visual (con fallback)
+- DOCX → extracción de texto
+- CSV → análisis estructurado
+- XLSX → extracción y resumen tabular
+- Imágenes → análisis visual con modelo de visión + fallback
 - Uso del contenido como contexto real en la respuesta
+
+## 📚 Sistema RAG
+- Embeddings persistentes
+- Almacenamiento vectorial local
+- Recuperación híbrida:
+  - vectorial
+  - keyword
+- Reranking de resultados
+- Contexto documental inteligente
 
 ## ⚡ Streaming
 - Respuesta en tiempo real
@@ -42,10 +65,11 @@ Versión **V7 Ultimate** del proyecto **Chatbot Local con Ollama**, enfocada en 
 ## 💻 UX avanzada
 - Render profesional de código
 - Tablas limpias y legibles
-- Botón copiar contextual (código/tablas)
+- Botón copiar contextual
 - Input con auto-resize
 - Sidebar de sesiones
-- UI moderna y clara
+- Panel de administración
+- Tema claro / oscuro / auto
 
 ---
 
@@ -62,26 +86,27 @@ Core IA
    ├── Gestión de sesiones
    ├── Procesado de archivos
    ├── Inyección de contexto
+   ├── Routing / modos automáticos
    ├── Control de formato
+   ├── RAG persistente
    └── LLM local (Ollama)
 ```
----
+
 ---
 
 # 📂 Estructura del proyecto
 
 ```text
-V1/
+chatbot-ia/
 ├── data/
 │   ├── memory/
 │   ├── raw/
 │   └── vectorstore/
-├── docs/
-├── legacy_streamlit/
-│   └── app_streamlit_v1.py
 ├── src/
+│   ├── agents/
 │   ├── api/
 │   ├── app/
+│   ├── attachments/
 │   ├── config/
 │   ├── core/
 │   ├── frontend/
@@ -100,241 +125,302 @@ V1/
 │   ├── rag/
 │   ├── routing/
 │   ├── security/
-│   │    ├── prompt_guard.py
-│   │    ├── context_sanitizer.py
-│   │    └── response_guard.py
 │   ├── tools/
-│   └── agents/
+│   └── utils/
 ├── .env
 ├── .gitignore
 ├── README.md
+├── launch_chatbot.bat
+├── stop_chatbot.bat
 └── requirements.txt
-```
----
----
 
-# ⚙️ Backend (FastAPI)
-
-La carpeta src/api/ contiene la capa API del proyecto.
-
-## Endpoints principales
-- GET /health
-- POST /chat
-- POST /chat/stream
-- GET /sessions
-- POST /sessions
-- GET /sessions/{session_id}
-- DELETE /sessions/{session_id}
-- GET /documents
-- POST /documents/upload
-- DELETE /documents/{filename}
-- POST /documents/rebuild
-- POST /memory/reset
-
-Swagger disponible en:
-```text
-http://localhost:8000/docs
 ```
 
-# 🖥 Frontend (Next.js)
-
-La carpeta src/frontend/ contiene el frontend del proyecto.
-
-Funcionalidades actuales de interfaz:
-- Sidebar de sesiones
-- Chat con streaming
-- Panel de administración con pestañas
-- Tema claro / oscuro / auto
-- Renderizado markdown
-- Gestión documental RAG
-- Drag & drop para documentos
-- Subida múltiple de archivos
-- Menús ⋯ para acciones secundarias
-
-## Componentes principales
-- SessionList.tsx
-- MessageBubble.tsx
-- ChatComposer.tsx
-- AdminPanel.tsx
-- UploadDropzone.tsx
-
-# 🧠 Core IA
-
-La lógica de inteligencia artificial sigue residiendo en src/:
-
-- src/llm/ → cliente Ollama
-- src/routing/ → router de intenciones
-- src/rag/ → ingestion, retrieval, vectorstore y pipeline RAG
-- src/memory/ → memoria persistente y extracción de hechos
-- src/tools/ → weather, datetime, cálculo, búsqueda web
-- src/app/ → servicios de chat, sesiones y documentos
-- src/api/ → endpoints FastAPI
-- src/frontend/ → interfaz Next.js
 ---
 
+# ⚙️ Requisitos previos
+
+Antes de ejecutar el proyecto necesitas tener instalado:
+
+## 1. Python
+- **Python 3.11 o superior** recomendado
+
+## 2. Node.js
+- **Node.js 18 o superior** recomendado
+
+## 3. Ollama
+Descárgalo e instálalo desde:
+
+- https://ollama.com/download
+
+## 4. Modelos Ollama necesarios
+
+### Modelo principal de chat
+```bash
+ollama pull gemma3:4b
+```
+
+### Modelo visual
+Debes tener al menos uno de estos:
+
+```bash
+ollama pull qwen2.5vl:7b
+```
+
+Si tu equipo no puede mover ese modelo por RAM, puedes usar el fallback ya configurado:
+
+```bash
+ollama pull gemma3:4b
+ollama pull gemma3:4
+```
+
+> Nota: `qwen2.5vl:7b` puede requerir bastante memoria. Si falla, el sistema intentará usar fallback.
+
+## 5. Dependencias Python
+Desde la raíz del proyecto:
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+## 6. Dependencias Frontend
+Desde `src/frontend`:
+
+```bash
+npm install
+```
+
+## 7. Configuración
+
+## Archivo `.env` en raíz
+
+```env
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_CHAT_MODEL=gemma3:4b
+OLLAMA_VISION_MODEL=qwen2.5vl:7b
+OLLAMA_MAX_TOKENS=1200
+LOG_LEVEL=INFO
+TAVILY_API_KEY=TU_API_KEY
+```
+
+## Archivo `src/frontend/.env.local`
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
 ---
 
-# 📂 Sistema RAG
+# 📂 Sistema documental RAG
 
-## Ingesta documental
-
-Los documentos deben almacenarse en:
+## Carpeta documental
+Los documentos se almacenan en:
 
 ```text
 data/raw/
 ```
 
-Formatos recomendados:
+## Flujo documental actual
+- Subida múltiple de documentos
+- Drag & drop
+- Indexación automática al subir
+- Eliminación del archivo físico
+- Eliminación de embeddings asociados
+- Reindexación completa desde UI
+
+## Formatos recomendados para RAG
 - `.txt`
 - `.md`
 - `.pdf`
 - `.docx`
+- `.csv`
+- `.xlsx`
 
-## Flujo documental actual
-### Subida documental
-- permite subir varios archivos a la vez
-- admite drag & drop
-- indexa automáticamente cada documento
-### Eliminar documento
-- elimina el archivo físico
-- elimina sus embeddings asociados
-### Reindexar todo
-- reprocesa todos los documentos presentes en data/raw
-- pensado como operación de mantenimiento
----
 ---
 
-## Construcción de embeddings
+# ⚙️ Backend (FastAPI)
 
-Ejecutar:
+La carpeta `src/api/` contiene la capa API.
 
-```bash
-python -m src.rag.ingestion
+## Endpoints principales
+- `GET /health`
+- `POST /chat`
+- `POST /chat/stream`
+- `POST /chat/attachments`
+- `POST /exports/response`
+- `GET /sessions`
+- `POST /sessions`
+- `GET /sessions/{session_id}`
+- `DELETE /sessions/{session_id}`
+- `GET /documents`
+- `POST /documents/upload`
+- `DELETE /documents/{filename}`
+- `POST /documents/rebuild`
+- `POST /memory/reset`
+
+## Swagger
+Disponible en:
+
+```text
+http://localhost:8000/docs
 ```
 
-Reconstrucción embeddings desde la UI:
-- botón “Reconstruir Base Vectorial”
+---
 
-Esto:
+# 🖥 Frontend (Next.js)
 
-1. Lee documentos.
-2. Los fragmenta en chunks.
-3. Genera embeddings.
-4. Los almacena en ChromaDB.
+La carpeta `src/frontend/` contiene el frontend del proyecto.
+
+## Funcionalidades actuales de interfaz
+- Sidebar de sesiones
+- Chat con streaming
+- Soporte de adjuntos
+- Panel de administración
+- Tema claro / oscuro / auto
+- Renderizado markdown
+- Renderizado avanzado de código
+- Renderizado avanzado de tablas
+- Gestión documental RAG
+- Drag & drop para documentos
+- Subida múltiple de archivos
+- Menús `⋯` para acciones secundarias
+- Botón STOP durante generación
+
+## Componentes principales
+- `SessionList.tsx`
+- `MessageBubble.tsx`
+- `AttachmentComposer.tsx`
+- `AdminPanel.tsx`
+- `UploadDropzone.tsx`
 
 ---
 
-# ▶️ Ejecución del proyecto
+# ▶️ Ejecución manual
 
-## 1. Backend
+## 1. Levantar Ollama
+En una terminal:
 
-Desde la raíz del proyecto:
 ```bash
+ollama serve
+```
+
+## 2. Levantar backend
+En otra terminal, desde la raíz:
+
+```bash
+venv\Scripts\activate
 uvicorn src.api.main:app --reload
 ```
-## 2. Frontend
 
-Desde src/frontend:
+## 3. Levantar frontend
+En otra terminal, desde `src/frontend`:
+
 ```bash
-npm install
 npm run dev
 ```
+
 ## URLs
 - Frontend: http://localhost:3000
 - Backend: http://localhost:8000
 - Swagger: http://localhost:8000/docs
+
 ---
 
-# 🔑 Variables de entorno necesarias
+# 🧪 Ejemplos de uso
 
-Crear archivo `.env`:
-
-```env
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_CHAT_MODEL=gemma3:4
-OLLAMA_MAX_TOKENS=1200
-LOG_LEVEL=INFO
-TAVILY_API_KEY=TU_API_KEY
-```
-## Frontend (src/frontend/.env.local)
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
----
-
-# 📌 Ejemplos de prompts soportados
-
-### Chat general
-
+## Chat general
 ```text
 Explícame qué es machine learning
 ```
 
-### Web Search
-
+## Código
 ```text
-Búscame noticias sobre inteligencia artificial en internet
+Dame un script en Python para hacer una cuenta atrás de 1000 a 0 de 2 en 2
 ```
 
-### Weather
-
+## Tabla
 ```text
-Qué tiempo hará la próxima semana en Chipiona
+Hazme una tabla markdown con 3 columnas sobre bases de datos vectoriales
 ```
 
-### DateTime
-
+## PDF
 ```text
-Qué hora es en Japón
+Resúmeme este PDF en 5 puntos
 ```
 
-### Calculator
-
+## CSV
 ```text
-Calcula sqrt(144) + 8 * 2
+Analiza este CSV en español y dame una tabla con 3 columnas
 ```
 
-### RAG
-
+## Imagen
 ```text
-Según mis documentos, ¿quién era Xylar?
+Kannst du den Fehler oder die wichtigen Informationen auf diesem Screenshot analysieren?
 ```
 
-### Memory
+## Multiidioma
+```text
+Can you explain this document in English?
+Peux-tu me faire un résumé clair de ce document ?
+```
+
+---
+
+# 🚀 Lanzador automático
+
+Este proyecto incluye scripts para ejecutar y detener todo el sistema de forma automática, sin necesidad de abrir múltiples terminales manualmente.
+
+---
+## ▶️ Iniciar el chatbot
+
+Archivo:
 
 ```text
-Mi nombre es Juan
-¿Cuál es mi nombre?
+launch_chatbot.bat
+```
+
+## ▶️ Parar el chatbot
+
+Archivo:
+
+```text
+stop_chatbot.bat
 ```
 ---
 
-# 🔮 Roadmap futuro
+# ⚠️ Limitaciones actuales
 
-## V7.1
-- 🌍 Soporte multiidioma automático
-- 🧹 Eliminación de hardcode en español
-- ⚙️ Configuración centralizada
-- 🧠 RAG avanzado
-- embeddings persistentes
-- reranking
-- 🤖 Agentes inteligentes
-- workflows automáticos
+- El modelo visual puede requerir bastante RAM
+- La calidad del análisis depende del modelo local instalado
+- El RAG está muy bien resuelto para uso local, pero no es una arquitectura distribuida
+- Los workflows automáticos son ligeros, no una orquestación multiagente compleja
+
+---
+
+# 🔮 Posicionamiento de esta versión
+
+Esta versión puede considerarse ya como una versión final sólida para:
+
+- portfolio
+- uso personal
+- base de proyectos más avanzados
+- demostración técnica en GitHub y LinkedIn
 
 ---
 
 # 📖 Propósito del proyecto
 
-Proyecto desarrollado como práctica personal para:
+Proyecto desarrollado para:
 
-- profundizar en arquitectura de agentes IA,
-- comprender integración real de tools + RAG,
-- aprender buenas prácticas de software engineering en IA,
-- crear una base escalable para versiones futuras.
+- aprender arquitectura real de sistemas IA
+- integrar LLMs locales en una aplicación completa
+- construir una base sólida reutilizable para otros proyectos
+- practicar RAG, adjuntos, multimodalidad y UX aplicada a IA
 
 ---
 
 # 👨‍💻 Autor
 
-Desarrollado por Juan Antonio como proyecto personal de aprendizaje y portfolio.
-
----
+Desarrollado por **Juan Antonio** como proyecto personal de aprendizaje, portfolio y base técnica para futuros proyectos de IA.

@@ -29,3 +29,4 @@ rank-bm25
 rapidfuzz
 pytest
 pytest-cov
+lingua-language-detector

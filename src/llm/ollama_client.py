@@ -13,6 +13,8 @@ import requests
 
 from src.config.settings import OLLAMA_BASE_URL, OLLAMA_CHAT_MODEL, OLLAMA_MAX_TOKENS
 from src.core.exceptions import OllamaConnectionError
+from src.core.system_prompt import build_base_system_prompt
+from src.utils.language import detect_language
 
 logger = logging.getLogger(__name__)
 
@@ -188,24 +190,25 @@ def generate_response_stream(
 
 
 def format_tool_result_with_llm(user_prompt: str, tool_name: str, tool_result: str) -> str:
+    language = detect_language(user_prompt)
+
     messages = [
         {
             "role": "system",
             "content": (
-                "Eres un asistente preciso y profesional. "
-                "Tu tarea es transformar resultados de herramientas en respuestas finales claras, "
-                "naturales y útiles en español. "
-                "No inventes datos. "
-                "No menciones nombres internos como tool, router o API."
+                build_base_system_prompt(language)
+                + "Your task is to transform tool outputs into a final, natural and useful response. "
+                + "Do not invent data. "
+                + "Do not mention internal names like tool, router or API."
             ),
         },
         {
             "role": "user",
             "content": (
-                f"Consulta original del usuario: {user_prompt}\n\n"
-                f"Herramienta utilizada: {tool_name}\n\n"
-                f"Resultado de la herramienta:\n{tool_result}\n\n"
-                "Redacta una respuesta final para el usuario en español."
+                f"Original user request: {user_prompt}\n\n"
+                f"Tool used: {tool_name}\n\n"
+                f"Tool result:\n{tool_result}\n\n"
+                "Write the final user-facing answer."
             ),
         },
     ]
@@ -218,22 +221,24 @@ def format_tool_result_with_llm_stream(
     tool_name: str,
     tool_result: str,
 ):
+    language = detect_language(user_prompt)
+
     messages = [
         {
             "role": "system",
             "content": (
-                "Eres un asistente preciso y profesional. "
-                "Transforma resultados de herramientas en respuestas finales claras y útiles en español. "
-                "No inventes datos."
+                build_base_system_prompt(language)
+                + "Transform tool outputs into a final, clear and useful response. "
+                + "Do not invent data."
             ),
         },
         {
             "role": "user",
             "content": (
-                f"Consulta original del usuario: {user_prompt}\n\n"
-                f"Herramienta utilizada: {tool_name}\n\n"
-                f"Resultado de la herramienta:\n{tool_result}\n\n"
-                "Redacta una respuesta final para el usuario en español."
+                f"Original user request: {user_prompt}\n\n"
+                f"Tool used: {tool_name}\n\n"
+                f"Tool result:\n{tool_result}\n\n"
+                "Write the final user-facing answer."
             ),
         },
     ]

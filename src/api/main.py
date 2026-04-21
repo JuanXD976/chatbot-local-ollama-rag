@@ -24,14 +24,16 @@ from src.api.schemas import (
 from src.app.document_service import DocumentService
 from src.attachments.chat_attachment_service import stream_answer_with_attachments
 from src.config.settings import OLLAMA_CHAT_MODEL
+from src.core.system_prompt import build_base_system_prompt
 from src.llm.ollama_client import check_ollama_connection, clean_response
 from src.memory.memory_extractor import extract_memory_fact
 from src.memory.memory_service import append_message_to_memory, reset_persistent_memory
-from src.rag.pipeline import answer_with_rag_stream, should_use_rag_for_query
+from src.rag.pipeline import answer_with_rag_stream, build_rag_context
 from src.routing.router import detect_intent, stream_user_message
 from src.security.prompt_guard import assess_user_prompt, get_blocked_response
+from src.utils.language import detect_language
 
-app = FastAPI(title="Chatbot Local API", version="7.0.0")
+app = FastAPI(title="Chatbot Local API", version="10.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,17 +49,26 @@ def _inject_mode_system_message(
     prompt: str,
     mode: str | None,
     output_format: str | None,
-) -> tuple[list[dict[str, str]], str, str]:
+) -> tuple[list[dict[str, str]], str, str, str]:
+    language = detect_language(prompt)
     routing = detect_mode_and_output(prompt, mode, output_format)
+
     enhanced = list(messages_for_model)
     enhanced.insert(
         1,
         {
             "role": "system",
+            "content": build_base_system_prompt(language),
+        },
+    )
+    enhanced.insert(
+        2,
+        {
+            "role": "system",
             "content": routing.system_instruction,
         },
     )
-    return enhanced, routing.mode, routing.output_format
+    return enhanced, routing.mode, routing.output_format, language
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -113,7 +124,7 @@ def chat(payload: ChatRequest) -> ChatResponse:
         session_id=session_id,
         current_prompt=payload.message,
     )
-    messages_for_model, mode_used, output_format_used = _inject_mode_system_message(
+    messages_for_model, mode_used, output_format_used, _language = _inject_mode_system_message(
         messages_for_model,
         payload.message,
         payload.mode,
@@ -177,7 +188,7 @@ def chat_stream(payload: ChatRequest):
         session_id=session_id,
         current_prompt=payload.message,
     )
-    messages_for_model, mode_used, output_format_used = _inject_mode_system_message(
+    messages_for_model, mode_used, output_format_used, _language = _inject_mode_system_message(
         messages_for_model,
         payload.message,
         payload.mode,
@@ -190,7 +201,9 @@ def chat_stream(payload: ChatRequest):
         accumulated = ""
         already_sent = ""
 
-        if should_use_rag_for_query(payload.message):
+        rag_context, _sources = build_rag_context(payload.message)
+
+        if rag_context:
             source_stream = answer_with_rag_stream(
                 payload.message,
                 requested_mode=payload.mode,
@@ -224,9 +237,22 @@ def chat_stream(payload: ChatRequest):
                     if delta:
                         yield delta
 
+        final_answer = clean_response(accumulated)
+
         memory_fact = extract_memory_fact(payload.message)
         if memory_fact:
             append_message_to_memory("user", memory_fact)
+
+        session_service.append_message(
+            session_id=session_id,
+            role="user",
+            content=payload.message,
+        )
+        session_service.append_message(
+            session_id=session_id,
+            role="assistant",
+            content=final_answer,
+        )
 
     headers = {
         "X-Session-Id": session_id,
@@ -381,7 +407,7 @@ async def export_response(
             headers={"Content-Disposition": 'attachment; filename="respuesta.xlsx"'},
         )
 
-    raise HTTPException(status_code=400, detail="Formato de exportación no soportado.")
+    raise HTTPException(status_code=400, detail="Unsupported export format.")
 
 
 @app.get("/sessions", response_model=list[SessionSummary])
@@ -419,7 +445,7 @@ def get_session(session_id: str):
     session = session_service.get_session(session_id)
 
     if not session:
-        raise HTTPException(status_code=404, detail="Sesión no encontrada.")
+        raise HTTPException(status_code=404, detail="Session not found.")
 
     return SessionDetail(
         session_id=session.session_id,
@@ -483,7 +509,7 @@ def delete_document(filename: str):
     result = DocumentService.delete_document(filename)
 
     if not result["deleted_file"]:
-        raise HTTPException(status_code=404, detail="Documento no encontrado.")
+        raise HTTPException(status_code=404, detail="Document not found.")
 
     return {
         "ok": True,

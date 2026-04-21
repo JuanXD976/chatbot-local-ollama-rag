@@ -8,7 +8,9 @@ from PIL import Image
 
 from src.config.settings import OLLAMA_BASE_URL, OLLAMA_VISION_MODEL
 from src.core.exceptions import OllamaConnectionError
+from src.core.system_prompt import build_base_system_prompt
 from src.llm.ollama_client import clean_response
+from src.utils.language import detect_language
 
 
 MAX_IMAGE_SIDE = 1600
@@ -33,24 +35,26 @@ def _prepare_image_for_ollama(file_bytes: bytes) -> str:
 
 
 def _call_vision_model(model_name: str, file_name: str, encoded: str, user_prompt: str) -> str:
+    language = detect_language(user_prompt)
+
     messages = [
         {
             "role": "system",
             "content": (
-                "Eres un asistente visual preciso. "
-                "Analiza la imagen y describe solo lo que realmente se observa. "
-                "Si el usuario pregunta por un error técnico, intenta identificarlo. "
-                "Si hay texto visible, intégralo si es relevante. "
-                "No inventes detalles no visibles. "
-                "Responde en español."
+                build_base_system_prompt(language)
+                + "You are a precise visual assistant. "
+                + "Analyze the image and describe only what is actually visible. "
+                + "If the user asks about a technical error, try to identify it. "
+                + "If there is visible text, include it if it is relevant. "
+                + "Do not invent details that are not visible."
             ),
         },
         {
             "role": "user",
             "content": (
-                f"Archivo visual: {file_name}\n"
-                f"Pregunta del usuario: {user_prompt}\n\n"
-                "Analiza la imagen y responde con la información útil."
+                f"Visual file: {file_name}\n"
+                f"User question: {user_prompt}\n\n"
+                "Analyze the image and answer with the most useful information."
             ),
             "images": [encoded],
         },
@@ -75,8 +79,8 @@ def _call_vision_model(model_name: str, file_name: str, encoded: str, user_promp
     if not response.ok:
         error_text = response.text[:1200]
         raise OllamaConnectionError(
-            f"El modelo visual {model_name} devolvió error HTTP {response.status_code}. "
-            f"Detalle: {error_text}"
+            f"Visual model {model_name} returned HTTP {response.status_code}. "
+            f"Detail: {error_text}"
         )
 
     data = response.json()
@@ -104,6 +108,6 @@ def analyze_image_with_vision(
             errors.append(f"{model_name}: {exc}")
 
     raise OllamaConnectionError(
-        "No se pudo obtener respuesta de ningún modelo visual disponible. "
+        "No available visual model could produce a response. "
         + " | ".join(errors)
     )
