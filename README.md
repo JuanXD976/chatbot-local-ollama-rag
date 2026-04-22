@@ -465,6 +465,13 @@ Proyecto desarrollado para:
 - practicar RAG, adjuntos, multimodalidad y UX aplicada a IA
 
 ---
+## Disclaimer
+
+Este proyecto utiliza modelos de lenguaje ejecutados localmente mediante Ollama.  
+Cada modelo está sujeto a su propia licencia de uso.
+
+Este proyecto no redistribuye modelos ni datos propietarios.
+---
 
 # 👨‍💻 Autor
 
