@@ -11,7 +11,7 @@ Esta versión integra:
 - ⚡ Streaming en tiempo real + botón **STOP**
 - 💾 Sesiones persistentes
 - 🧩 Arquitectura modular escalable
-- 🎯 UX avanzada tipo ChatGPT
+- 🎯 UX medio-avanzada tipo ChatGPT
 
 ---
 
@@ -63,7 +63,7 @@ Esta versión integra:
 - Contexto mantenido por sesión
 
 ## 💻 UX avanzada
-- Render profesional de código
+- Render avanzado de código
 - Tablas limpias y legibles
 - Botón copiar contextual
 - Input con auto-resize
@@ -97,45 +97,111 @@ Core IA
 # 📂 Estructura del proyecto
 
 ```text
-chatbot-ia/
-├── data/
-│   ├── memory/
-│   ├── raw/
-│   └── vectorstore/
+chatbot-local-ollama-rag/
+│
 ├── src/
 │   ├── agents/
+│   │   └── mode_router.py
+│   │
 │   ├── api/
+│   │   ├── main.py
+│   │   ├── dependencies.py
+│   │   └── schemas.py
+│   │
 │   ├── app/
+│   │   ├── chat_service.py
+│   │   ├── document_service.py
+│   │   ├── orchestrator.py
+│   │   └── session_service.py
+│   │
 │   ├── attachments/
+│   │   ├── chat_attachment_service.py
+│   │   ├── file_parser.py
+│   │   └── vision_service.py
+│   │
 │   ├── config/
+│   │   ├── settings.py
+│   │   └── logging_config.py
+│   │
 │   ├── core/
-│   ├── frontend/
-│   │   ├── app/
-│   │   │   ├── components/
-│   │   │   ├── globals.css
-│   │   │   ├── layout.tsx
-│   │   │   └── page.tsx
-│   │   ├── lib/
-│   │   ├── next-env.d.ts
-│   │   ├── next.config.ts
-│   │   ├── package.json
-│   │   └── tsconfig.json
+│   │   ├── models.py
+│   │   ├── exceptions.py
+│   │   └── system_prompt.py
+│   │
 │   ├── llm/
+│   │   └── ollama_client.py
+│   │
 │   ├── memory/
+│   │   ├── memory_service.py
+│   │   ├── memory_store.py
+│   │   └── memory_extractor.py
+│   │
 │   ├── rag/
+│   │   ├── ingestion.py
+│   │   ├── pipeline.py
+│   │   ├── retriever.py
+│   │   └── vectorstore.py
+│   │   
+│   ├── src/frontend/
+│   │   ├── app/
+│   │   │   ├── layout.tsx
+│   │   │   ├── page.tsx
+│   │   │   ├── globals.css
+│   │   │   │
+│   │   │   └── components/
+│   │   │       ├── ChatComposer.tsx
+│   │   │       ├── MessageBubble.tsx
+│   │   │       ├── SessionList.tsx
+│   │   │       ├── AttachmentComposer.tsx
+│   │   │       ├── UploadButton.tsx
+│   │   │       ├── UploadDropzone.tsx
+│   │   │       ├── AdminPanel.tsx
+│   │   │
+│   │   ├── lib/
+│   │   │   └── api.ts
+│   │   │
+│   │   ├── package.json
+│   │   ├── package-lock.json
+│   │   ├── tsconfig.json
+│   │   ├── next.config.ts
+│   │   ├── next-env.d.ts
+│   │   └── .env.local
 │   ├── routing/
+│   │   └── router.py
+│   │
 │   ├── security/
+│   │   ├── context_sanitizer.py
+│   │   ├── prompt_guard.py
+│   │   └── response_guard.py
+│   │
 │   ├── tools/
+│   │   └── tools.py
+│   │
 │   └── utils/
+│       └── language.py
+│
+
+│
+├── data/
+│   ├── raw/
+│   ├── memory/
+│   └── vectorstore/
+│
+├── docs/
+│   ├── estructura.txt
+│   ├── pasos_a_tener_en_cuenta.txt
+│   └── settings.py
+│
+├── .env.example
 ├── .env
 ├── .gitignore
-├── README.md
+├── requirements.txt
 ├── launch_chatbot.bat
 ├── stop_chatbot.bat
-└── requirements.txt
-
+└── README.md
 ```
-
+> Nota: El archivo `.env` no se incluye en el repositorio por motivos de seguridad.  
+> Puedes usar `.env.example` como referencia.
 ---
 
 # ⚙️ Requisitos previos
