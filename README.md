@@ -194,18 +194,17 @@ npm install
 
 ## 7. Configuración
 
-## Archivo `.env` en raíz
+El proyecto funciona sin necesidad de un .env complejo. El sistema está configurado principalmente desde `settings.py`
+Si quieres usar búsqueda web con Tavily, puedes crear un archivo .env en la raíz con:
 
 ```env
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_CHAT_MODEL=gemma3:4b
-OLLAMA_VISION_MODEL=qwen2.5vl:7b
-OLLAMA_MAX_TOKENS=1200
-LOG_LEVEL=INFO
-TAVILY_API_KEY=TU_API_KEY
+TAVILY_API_KEY=tu_api_key
 ```
+También puedes usar .env.example como plantilla.
 
-## Archivo `src/frontend/.env.local`
+## 8. Configuración frontend
+
+Archivo `src/frontend/.env.local`
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
@@ -288,13 +287,6 @@ La carpeta `src/frontend/` contiene el frontend del proyecto.
 - Menús `⋯` para acciones secundarias
 - Botón STOP durante generación
 
-## Componentes principales
-- `SessionList.tsx`
-- `MessageBubble.tsx`
-- `AttachmentComposer.tsx`
-- `AdminPanel.tsx`
-- `UploadDropzone.tsx`
-
 ---
 
 # ▶️ Ejecución manual
@@ -327,6 +319,26 @@ npm run dev
 - Swagger: http://localhost:8000/docs
 
 ---
+
+# 🚀 Lanzador automático
+## Iniciar
+Archivo:
+```bash
+launch_chatbot.bat
+```
+## Detener
+
+Archivo:
+```bash
+stop_chatbot.bat
+```
+## Estos scripts:
+
+- levantan Ollama
+- levantan backend
+- levantan frontend
+- abren la app web
+- permiten detener los procesos
 
 # 🧪 Ejemplos de uso
 
@@ -368,45 +380,12 @@ Peux-tu me faire un résumé clair de ce document ?
 
 ---
 
-# 🚀 Lanzador automático
-
-Este proyecto incluye scripts para ejecutar y detener todo el sistema de forma automática, sin necesidad de abrir múltiples terminales manualmente.
-
----
-## ▶️ Iniciar el chatbot
-
-Archivo:
-
-```text
-launch_chatbot.bat
-```
-
-## ▶️ Parar el chatbot
-
-Archivo:
-
-```text
-stop_chatbot.bat
-```
----
-
 # ⚠️ Limitaciones actuales
 
 - El modelo visual puede requerir bastante RAM
 - La calidad del análisis depende del modelo local instalado
 - El RAG está muy bien resuelto para uso local, pero no es una arquitectura distribuida
 - Los workflows automáticos son ligeros, no una orquestación multiagente compleja
-
----
-
-# 🔮 Posicionamiento de esta versión
-
-Esta versión puede considerarse ya como una versión final sólida para:
-
-- portfolio
-- uso personal
-- base de proyectos más avanzados
-- demostración técnica en GitHub y LinkedIn
 
 ---
 

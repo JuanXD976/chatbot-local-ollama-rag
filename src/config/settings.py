@@ -27,9 +27,9 @@ RAW_DIR.mkdir(parents=True, exist_ok=True)
 VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
 MEMORY_DIR.mkdir(parents=True, exist_ok=True)
 
-APP_TITLE = "Chatbot Local con Ollama - V7 Ultimate"
+APP_TITLE = "Chatbot Local con Ollama - V8 Final"
 APP_DESCRIPTION = (
-    "Chatbot local multimodal con RAG Pro, modos inteligentes, adjuntos, visión y exportación."
+    "Chatbot local multimodal con RAG persistente, modos inteligentes, adjuntos, visión y exportación."
 )
 MAX_MESSAGES = int(os.getenv("MAX_MESSAGES", "14"))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
@@ -54,34 +54,6 @@ TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
 RAG_RAW_DATA_PATH = "data/raw"
 RAG_CHROMA_PATH = "data/vectorstore/chroma_db"
 RAG_EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-
-"""
-RAG_CHUNK_SIZE
-
-Es el tamaño aproximado de cada fragmento.
-
-Ejemplo:
-
-si el texto es largo, se corta en trozos de unas 800 unidades de texto
-
-RAG_CHUNK_OVERLAP
-
-Es el solapamiento entre chunks.
-
-Ejemplo:
-
-chunk 1 termina en una frase
-chunk 2 repite un poco del final del chunk 1
-
-Esto ayuda a no perder contexto en cortes bruscos.
-
-RAG_TOP_K = 4
-
-Significa:
-
-cuando haces una consulta, el retriever recupera los 4 chunks más relevantes
-"""
-
 RAG_CHUNK_SIZE = 800
 RAG_CHUNK_OVERLAP = 150
 RAG_TOP_K = int(os.getenv("RAG_TOP_K", "8"))
